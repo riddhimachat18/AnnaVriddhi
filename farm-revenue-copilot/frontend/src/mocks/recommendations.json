@@ -1,0 +1,22 @@
+[
+  {
+    "id": "rec-001",
+    "cropId": "crop-wheat-001",
+    "type": "irrigation",
+    "priority": "high",
+    "title": "Irrigate within 48 hours",
+    "body": "Soil moisture is at 28% — below the 35% threshold for this growth stage. Apply 25mm of water.",
+    "createdAt": "2026-09-10T06:00:00Z",
+    "status": "pending"
+  },
+  {
+    "id": "rec-002",
+    "cropId": "crop-wheat-001",
+    "type": "fertilizer",
+    "priority": "medium",
+    "title": "Top-dress with urea",
+    "body": "Canopy colour indicates mild nitrogen deficiency. Apply 20 kg/acre urea before the next rain event.",
+    "createdAt": "2026-09-09T08:00:00Z",
+    "status": "acknowledged"
+  }
+]

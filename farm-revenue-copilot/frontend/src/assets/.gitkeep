@@ -1,0 +1,2 @@
+# Place SVG icons and image assets here.
+# Reference them in JSX via: import logo from '../assets/logo.svg'

@@ -1,0 +1,16 @@
+{
+  "cropId": "crop-wheat-001",
+  "gradedAt": "2026-09-10T07:30:00Z",
+  "grade": "A2",
+  "score": 82,
+  "breakdown": {
+    "color": 88,
+    "size": 80,
+    "moisture": 79,
+    "pestDamage": 85
+  },
+  "estimatedMarketPrice": 2350,
+  "currency": "INR",
+  "unit": "quintal",
+  "notes": "Minor lodging detected in north quadrant. Monitor for fungal risk."
+}
