@@ -1,0 +1,8 @@
+{
+  "crop": "potato",
+  "size_bands": { "good_circularity_min": 0.75, "fair_circularity_min": 0.55, "good_solidity_min": 0.9 },
+  "color_bands": { "good_saturation_min": 90, "fair_saturation_min": 60 },
+  "texture_bands": { "good_contrast_max": 150, "fair_contrast_max": 400 },
+  "price_impact_pct": { "A": 0, "B": -12, "C": -30 },
+  "notes": "Starter thresholds — recalibrate against this crop's real train data in Phase 6 (see build_dataset.py output + notebook stats)."
+}

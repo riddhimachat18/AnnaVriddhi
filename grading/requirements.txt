@@ -1,0 +1,6 @@
+opencv-python-headless
+scikit-learn
+scikit-image
+pandas
+numpy
+joblib

@@ -1,0 +1,5 @@
+{
+  "crops": ["tomato", "onion", "potato", "banana"],
+  "grades": ["A", "B", "C"],
+  "notes": "Brinjal deferred (no dataset coverage). Add a new crop later by appending here and adding data/{crop}/A,B,C folders — no code changes needed, only a new config/{crop}_thresholds.json and a retrain run."
+}

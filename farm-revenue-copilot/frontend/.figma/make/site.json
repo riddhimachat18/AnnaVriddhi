@@ -1,0 +1,10 @@
+{
+  "description": "Create stunning, customizable websites effortlessly with this user-friendly platform designed for businesses and individuals seeking an impactful online presence.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
