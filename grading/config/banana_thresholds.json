@@ -1,0 +1,54 @@
+{
+  "crop": "banana",
+  "price_impact_pct": { "A": 0, "B": -10, "C": -28 },
+
+  "size_bands": {
+    "good_circularity_min": 0.40, "fair_circularity_min": 0.28,
+    "good_solidity_min": 0.85
+  },
+  "color_bands": {
+    "good_saturation_min": 80, "fair_saturation_min": 50
+  },
+  "texture_bands": {
+    "good_contrast_max": 180, "fair_contrast_max": 450
+  },
+
+  "rgb_grading": {
+    "weights": {
+      "color_ripeness": 0.35,
+      "defect":         0.25,
+      "shape":          0.20,
+      "size":           0.10,
+      "model_signal":   0.10
+    },
+
+    "ripeness": {
+      "note": "Ripe banana hue 20-35 (yellow). Overripe browns toward 10-20.",
+      "ripe_hue_ranges":     [[20, 35]],
+      "unripe_hue_ranges":   [[55, 85]],
+      "overripe_hue_ranges": [[0, 15]],
+      "ripe_sat_min": 70,
+      "ripe_val_min": 120
+    },
+
+    "defect": {
+      "dark_val_threshold": 45,
+      "dark_sat_threshold": 20,
+      "max_defect_pct_A": 4.0,
+      "max_defect_pct_B": 12.0
+    },
+
+    "shape": {
+      "note": "Banana is curved/elongated — low circularity is normal.",
+      "ideal_circularity": 0.45,
+      "ideal_aspect_ratio": 2.5,
+      "aspect_tolerance": 0.60,
+      "ideal_solidity": 0.88
+    },
+
+    "size": {
+      "large_area_min_pct":  10.0,
+      "medium_area_min_pct":  4.0
+    }
+  }
+}

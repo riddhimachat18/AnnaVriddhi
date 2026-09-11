@@ -1,0 +1,53 @@
+{
+  "crop": "tomato",
+  "price_impact_pct": { "A": 0, "B": -12, "C": -30 },
+
+  "size_bands": {
+    "good_circularity_min": 0.75, "fair_circularity_min": 0.55,
+    "good_solidity_min": 0.90
+  },
+  "color_bands": {
+    "good_saturation_min": 90, "fair_saturation_min": 60
+  },
+  "texture_bands": {
+    "good_contrast_max": 150, "fair_contrast_max": 400
+  },
+
+  "rgb_grading": {
+    "weights": {
+      "color_ripeness": 0.35,
+      "defect":         0.25,
+      "shape":          0.20,
+      "size":           0.10,
+      "model_signal":   0.10
+    },
+
+    "ripeness": {
+      "note": "Ripe tomato hue 0-15 and 165-180 (red). Unripe: green 35-85.",
+      "ripe_hue_ranges":   [[0, 15], [165, 180]],
+      "unripe_hue_ranges": [[35, 85]],
+      "ripe_sat_min": 80,
+      "ripe_val_min": 60
+    },
+
+    "defect": {
+      "dark_val_threshold": 40,
+      "dark_sat_threshold": 30,
+      "max_defect_pct_A": 3.0,
+      "max_defect_pct_B": 10.0
+    },
+
+    "shape": {
+      "ideal_circularity": 0.82,
+      "ideal_aspect_ratio": 1.0,
+      "aspect_tolerance": 0.30,
+      "ideal_solidity": 0.95
+    },
+
+    "size": {
+      "note": "Fraction of image area occupied by the object.",
+      "large_area_min_pct":  8.0,
+      "medium_area_min_pct": 3.0
+    }
+  }
+}

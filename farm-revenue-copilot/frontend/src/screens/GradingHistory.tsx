@@ -1,0 +1,161 @@
+import { C, radius, shadow } from "../tokens";
+import { PageHeader, Badge } from "../components/ui";
+import type { Screen } from "../tokens";
+
+const history = [
+  { id: 14, date: "14 Nov 2024", crop: "Wheat", variety: "HD-3226", grade: "A" as const, score: 92, price: 2240, qty: 12, img: "https://images.unsplash.com/photo-1630873711080-aa3097d1da66?w=120&h=80&fit=crop&auto=format" },
+  { id: 13, date: "02 Nov 2024", crop: "Wheat", variety: "HD-3226", grade: "A" as const, score: 89, price: 2180, qty: 10, img: "https://images.unsplash.com/photo-1715289718087-66a61b7b4c0d?w=120&h=80&fit=crop&auto=format" },
+  { id: 12, date: "18 Oct 2024", crop: "Wheat", variety: "HD-3226", grade: "B" as const, score: 74, price: 2020, qty: 8, img: "https://images.unsplash.com/photo-1626606439378-191600523bfd?w=120&h=80&fit=crop&auto=format" },
+  { id: 11, date: "05 Oct 2024", crop: "Wheat", variety: "HD-3226", grade: "A" as const, score: 91, price: 2200, qty: 14, img: "https://images.unsplash.com/photo-1508175688576-0c076b47b5b5?w=120&h=80&fit=crop&auto=format" },
+  { id: 10, date: "12 Sep 2024", crop: "Paddy", variety: "PR-126", grade: "B" as const, score: 71, price: 1940, qty: 22, img: "https://images.unsplash.com/photo-1519082572439-7ed19908e47e?w=120&h=80&fit=crop&auto=format" },
+  { id: 9, date: "28 Aug 2024", crop: "Paddy", variety: "PR-126", grade: "A" as const, score: 88, price: 2060, qty: 18, img: "https://images.unsplash.com/photo-1519082572439-7ed19908e47e?w=120&h=80&fit=crop&auto=format" },
+];
+
+const gradeConfig = {
+  A: { color: C.sage, bg: C.sageTint },
+  B: { color: C.amber, bg: C.amberTint },
+  C: { color: C.rust, bg: C.rustTint },
+};
+
+export default function GradingHistory({ navigate }: { navigate: (s: Screen) => void }) {
+  const avgScore = Math.round(history.reduce((a, h) => a + h.score, 0) / history.length);
+  const gradeACount = history.filter((h) => h.grade === "A").length;
+
+  return (
+    <div>
+      <PageHeader
+        title="Grading History"
+        subtitle={`${history.length} batches graded this season`}
+        back="Grade Produce"
+        onBack={() => navigate("grade-capture")}
+        actions={
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <span style={{ fontSize: 13, color: C.inkMuted }}>Season: Kharif 2024</span>
+          </div>
+        }
+      />
+
+      {/* Summary row */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 24 }}>
+        {[
+          { icon: "▦", label: "Avg quality score", value: `${avgScore}/100`, color: C.sage },
+          { icon: "🏆", label: "Grade A batches", value: `${gradeACount}/${history.length}`, color: C.sage },
+          { icon: "₹", label: "Avg price achieved", value: "₹2,107/qtl", color: C.sageDeep },
+          { icon: "📦", label: "Total graded", value: `${history.reduce((a, h) => a + h.qty, 0)} qtl`, color: C.ink },
+        ].map(({ icon, label, value, color }) => (
+          <div
+            key={label}
+            style={{
+              background: C.surface,
+              borderRadius: radius.lg,
+              padding: "18px 20px",
+              border: `1px solid ${C.line}`,
+              boxShadow: shadow.card,
+            }}
+          >
+            <div style={{ fontSize: 24, marginBottom: 8 }}>{icon}</div>
+            <div style={{ fontSize: 11, color: C.inkMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>{label}</div>
+            <div style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 22, color, letterSpacing: "-0.02em" }}>{value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* History list */}
+      <div
+        style={{
+          background: C.surface,
+          borderRadius: radius.xl,
+          border: `1px solid ${C.line}`,
+          boxShadow: shadow.card,
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "80px 1fr 100px 80px 100px 100px 100px",
+            padding: "12px 20px",
+            background: C.bg,
+            borderBottom: `1px solid ${C.line}`,
+            fontSize: 11,
+            fontWeight: 700,
+            color: C.inkMuted,
+            textTransform: "uppercase",
+            letterSpacing: "0.06em",
+            gap: 12,
+          }}
+        >
+          <span>Photo</span>
+          <span>Crop / Variety</span>
+          <span>Date</span>
+          <span>Grade</span>
+          <span>Score</span>
+          <span>Qty (qtl)</span>
+          <span>Price/qtl</span>
+        </div>
+
+        {history.map((h, i) => {
+          const gc = gradeConfig[h.grade];
+          return (
+            <div
+              key={h.id}
+              onClick={() => navigate("grading-result")}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "80px 1fr 100px 80px 100px 100px 100px",
+                padding: "14px 20px",
+                borderBottom: i < history.length - 1 ? `1px solid ${C.line}` : "none",
+                alignItems: "center",
+                gap: 12,
+                cursor: "pointer",
+                transition: "background 0.15s",
+              }}
+              onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = C.bg)}
+              onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = "transparent")}
+            >
+              <div
+                style={{
+                  width: 72,
+                  height: 44,
+                  borderRadius: radius.sm,
+                  overflow: "hidden",
+                  background: C.bg,
+                }}
+              >
+                <img src={h.img} alt={h.crop} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: C.ink }}>{h.crop}</div>
+                <div style={{ fontSize: 12, color: C.inkMuted }}>{h.variety} · Batch #{h.id}</div>
+              </div>
+              <div style={{ fontSize: 13, color: C.inkMuted }}>{h.date}</div>
+              <div>
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: "50%",
+                    background: gc.bg,
+                    border: `2px solid ${gc.color}`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontFamily: "var(--font-display)",
+                    fontWeight: 800,
+                    fontSize: 15,
+                    color: gc.color,
+                  }}
+                >
+                  {h.grade}
+                </div>
+              </div>
+              <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 700, color: C.ink }}>{h.score}</div>
+              <div style={{ fontSize: 14, color: C.ink, fontWeight: 600 }}>{h.qty}</div>
+              <div style={{ fontFamily: "var(--font-display)", fontSize: 15, fontWeight: 700, color: C.sageDeep }}>₹{h.price}</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

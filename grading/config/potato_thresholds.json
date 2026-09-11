@@ -1,0 +1,53 @@
+{
+  "crop": "potato",
+  "price_impact_pct": { "A": 0, "B": -8, "C": -22 },
+
+  "size_bands": {
+    "good_circularity_min": 0.60, "fair_circularity_min": 0.42,
+    "good_solidity_min": 0.88
+  },
+  "color_bands": {
+    "good_saturation_min": 40, "fair_saturation_min": 20
+  },
+  "texture_bands": {
+    "good_contrast_max": 200, "fair_contrast_max": 500
+  },
+
+  "rgb_grading": {
+    "weights": {
+      "color_ripeness": 0.35,
+      "defect":         0.25,
+      "shape":          0.20,
+      "size":           0.10,
+      "model_signal":   0.10
+    },
+
+    "ripeness": {
+      "note": "Potato colour uniformity matters more than ripeness hue. Target hue 15-30 (tan/brown). Green tinges (hue 55-85) signal solanine — heavily penalised.",
+      "ripe_hue_ranges":     [[10, 32]],
+      "unripe_hue_ranges":   [[55, 85]],
+      "ripe_sat_min": 20,
+      "ripe_val_min": 80
+    },
+
+    "defect": {
+      "dark_val_threshold": 35,
+      "dark_sat_threshold": 15,
+      "max_defect_pct_A": 2.5,
+      "max_defect_pct_B": 9.0
+    },
+
+    "shape": {
+      "note": "Potatoes are oval — moderate circularity expected.",
+      "ideal_circularity": 0.68,
+      "ideal_aspect_ratio": 1.4,
+      "aspect_tolerance": 0.40,
+      "ideal_solidity": 0.92
+    },
+
+    "size": {
+      "large_area_min_pct":  7.0,
+      "medium_area_min_pct": 2.5
+    }
+  }
+}
