@@ -1,0 +1,52 @@
+{
+  "crop": "onion",
+  "price_impact_pct": { "A": 0, "B": -10, "C": -25 },
+
+  "size_bands": {
+    "good_circularity_min": 0.72, "fair_circularity_min": 0.52,
+    "good_solidity_min": 0.90
+  },
+  "color_bands": {
+    "good_saturation_min": 50, "fair_saturation_min": 28
+  },
+  "texture_bands": {
+    "good_contrast_max": 160, "fair_contrast_max": 420
+  },
+
+  "rgb_grading": {
+    "weights": {
+      "color_ripeness": 0.35,
+      "defect":         0.25,
+      "shape":          0.20,
+      "size":           0.10,
+      "model_signal":   0.10
+    },
+
+    "ripeness": {
+      "note": "Mature onion outer skin: golden-brown hue 15-28. Red onion: 160-175. Avoid green (sprouting) 55-85.",
+      "ripe_hue_ranges":     [[15, 28], [155, 175]],
+      "unripe_hue_ranges":   [[55, 85]],
+      "ripe_sat_min": 30,
+      "ripe_val_min": 70
+    },
+
+    "defect": {
+      "dark_val_threshold": 30,
+      "dark_sat_threshold": 15,
+      "max_defect_pct_A": 2.0,
+      "max_defect_pct_B": 8.0
+    },
+
+    "shape": {
+      "ideal_circularity": 0.80,
+      "ideal_aspect_ratio": 1.0,
+      "aspect_tolerance": 0.25,
+      "ideal_solidity": 0.93
+    },
+
+    "size": {
+      "large_area_min_pct":  6.0,
+      "medium_area_min_pct": 2.0
+    }
+  }
+}

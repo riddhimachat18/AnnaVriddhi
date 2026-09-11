@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Grading Data Capture</title>
+<style>
+  :root { --sage:#5C7A5E; --bg:#FAFAF8; --ink:#242621; --line:#E4E2DA; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Noto Sans", sans-serif; background: var(--bg); color: var(--ink);
+         margin: 0; padding: 16px; max-width: 480px; margin-inline: auto; }
+  h1 { font-size: 20px; margin-bottom: 4px; }
+  p.sub { color: #6B6F66; font-size: 14px; margin-top: 0; }
+  select, button { font-size: 16px; padding: 10px; border-radius: 8px; border: 1px solid var(--line); }
+  select { width: 100%; margin-bottom: 12px; background: white; }
+  video, canvas { width: 100%; border-radius: 12px; border: 1px solid var(--line); background: #000; }
+  .guide-frame { position: relative; }
+  .guide-frame::after {
+    content: ""; position: absolute; top: 12%; left: 12%; right: 12%; bottom: 12%;
+    border: 2px dashed rgba(255,255,255,0.85); border-radius: 12px; pointer-events: none;
+  }
+  .grade-row { display: flex; gap: 8px; margin: 16px 0; }
+  .grade-btn { flex: 1; padding: 16px; font-weight: 600; border-radius: 10px; border: 2px solid var(--line);
+               background: white; cursor: pointer; }
+  .grade-btn[data-grade="A"].active { background: #E9EFE7; border-color: var(--sage); }
+  .grade-btn[data-grade="B"].active { background: #F3EBDC; border-color: #B8863B; }
+  .grade-btn[data-grade="C"].active { background: #F3E1DC; border-color: #A6503A; }
+  .capture-btn { width: 100%; background: var(--sage); color: white; border: none; padding: 14px;
+                 font-weight: 600; margin-top: 8px; }
+  .capture-btn:disabled { background: #B7C4B8; }
+  .log { margin-top: 16px; font-size: 13px; color: #6B6F66; max-height: 160px; overflow-y: auto; }
+  .log div { padding: 4px 0; border-bottom: 1px solid var(--line); }
+  .note { font-size: 12px; color: #6B6F66; margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<h1>Grading Data Capture</h1>
+<p class="sub">Standardizes capture conditions and labels each photo at the moment it's taken — no manual sorting afterward.</p>
+
+<select id="crop">
+  <option value="tomato">Tomato</option>
+  <option value="onion">Onion</option>
+  <option value="potato">Potato</option>
+  <option value="banana">Banana</option>
+  <option value="brinjal">Brinjal</option>
+</select>
+
+<div class="guide-frame">
+  <video id="video" autoplay playsinline></video>
+</div>
+<p class="note">Place item on a plain background, filling the dashed guide. Keep lighting consistent across a session.</p>
+
+<div class="grade-row">
+  <button class="grade-btn" data-grade="A">A — good</button>
+  <button class="grade-btn" data-grade="B">B — fair</button>
+  <button class="grade-btn" data-grade="C">C — poor</button>
+</div>
+
+<button class="capture-btn" id="captureBtn" disabled>Select a grade to capture</button>
+
+<canvas id="canvas" style="display:none;"></canvas>
+
+<div class="log" id="log"></div>
+
+<script>
+// This tool runs fully client-side. It saves each photo as a download named
+// {crop}_{grade}_{timestamp}.jpg — drop these directly into data/{crop}/{grade}/
+// with no renaming needed. For a multi-device team capture session, point the
+// fetch() call (commented below) at a tiny local upload endpoint instead.
+
+const video = document.getElementById('video');
+const canvas = document.getElementById('canvas');
+const captureBtn = document.getElementById('captureBtn');
+const cropSelect = document.getElementById('crop');
+const log = document.getElementById('log');
+let selectedGrade = null;
+let shotCount = 0;
+
+navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+  .then(stream => { video.srcObject = stream; })
+  .catch(err => { log.innerHTML = `<div>Camera access failed: ${err.message}. Use a device with a camera, or upload images manually into data/{crop}/{grade}/.</div>`; });
+
+document.querySelectorAll('.grade-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.grade-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedGrade = btn.dataset.grade;
+    captureBtn.disabled = false;
+    captureBtn.textContent = `Capture (${selectedGrade})`;
+  });
+});
+
+captureBtn.addEventListener('click', () => {
+  if (!selectedGrade) return;
+  const crop = cropSelect.value;
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+
+  const ts = Date.now();
+  const filename = `${crop}_${selectedGrade}_${ts}.jpg`;
+
+  canvas.toBlob(blob => {
+    // --- Local download path (default, zero backend needed) ---
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+
+    // --- Optional: auto-upload path instead of manual download ---
+    // const form = new FormData();
+    // form.append('file', blob, filename);
+    // form.append('crop', crop);
+    // form.append('grade', selectedGrade);
+    // fetch('/upload-capture', { method: 'POST', body: form });
+
+    shotCount++;
+    const entry = document.createElement('div');
+    entry.textContent = `#${shotCount}  ${filename}`;
+    log.prepend(entry);
+  }, 'image/jpeg', 0.92);
+});
+</script>
+
+</body>
+</html>

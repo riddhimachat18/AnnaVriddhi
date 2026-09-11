@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <!-- AnnaVriddhi favicon — sprout mark in sage-deep -->
+  <rect width="32" height="32" rx="8" fill="#3F5940"/>
+  <!-- Sprout: stem + two leaves -->
+  <path d="M16 26 V14" stroke="#E9EFE7" stroke-width="2" stroke-linecap="round"/>
+  <path d="M16 14 C16 10 11 8 8 10 C11 10 14 12 16 14" stroke="#E9EFE7" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <path d="M16 14 C16 10 21 8 24 10 C21 10 18 12 16 14" stroke="#E9EFE7" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>

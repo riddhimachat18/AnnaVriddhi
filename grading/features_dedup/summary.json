@@ -1,0 +1,30 @@
+{
+  "banana": {
+    "n_total": 2200,
+    "n_clusters": 605,
+    "train_count": 1601,
+    "test_count": 599,
+    "train_frac_actual": 0.7277272727272728
+  },
+  "onion": {
+    "n_total": 3128,
+    "n_clusters": 111,
+    "train_count": 2291,
+    "test_count": 837,
+    "train_frac_actual": 0.7324168797953964
+  },
+  "potato": {
+    "n_total": 1803,
+    "n_clusters": 35,
+    "train_count": 1358,
+    "test_count": 445,
+    "train_frac_actual": 0.7531891292290627
+  },
+  "tomato": {
+    "n_total": 10259,
+    "n_clusters": 151,
+    "train_count": 7273,
+    "test_count": 2986,
+    "train_frac_actual": 0.7089384930305098
+  }
+}

@@ -1,0 +1,31 @@
+
+# Dependencies — never commit installed packages
+node_modules/
+
+# Environment variables — never commit real secrets
+.env
+.env.local
+.env.*.local
+
+# Large data folders — not for version control
+data/
+data_processed/
+data_test/
+grading/data/
+grading/data_processed/
+grading/data_test/
+grading/fresh-rotten/
+grading/fruits360/
+grading/models/
+grading/models_dedup/
+
+# Python virtual environments
+grading/.venv/
+.venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
