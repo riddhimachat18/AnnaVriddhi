@@ -30,6 +30,58 @@ async function getForecast({ lat, lon }) {
   return _get(url);
 }
 
+/**
+ * Fetch weather data for use in crop recommendation logic.
+ * Returns current conditions plus forecast summaries.
+ * @param {number} lat - Latitude
+ * @param {number} lon - Longitude  
+ * @returns {Promise<{ temp: number, rainfall_mm: number, forecast24h: object, forecast72h: object }>}
+ */
+async function fetchWeather(lat, lon) {
+  try {
+    const [current, forecast] = await Promise.all([
+      getCurrentWeather({ lat, lon }),
+      getForecast({ lat, lon }),
+    ]);
+
+    // Extract current temperature and recent rainfall
+    const temp = current.main?.temp || 0;
+    const rainfall_mm = current.rain?.['1h'] || current.rain?.['3h'] || 0;
+
+    // Summarize 24h forecast (next 8 entries = 24 hours of 3-hour intervals)
+    const forecast24h = forecast.list?.slice(0, 8).map(f => ({
+      dt: f.dt,
+      temp: f.main.temp,
+      rain: f.rain?.['3h'] || 0,
+      description: f.weather?.[0]?.description,
+    })) || [];
+
+    // Summarize 72h forecast (next 24 entries = 72 hours)
+    const forecast72h = forecast.list?.slice(0, 24).map(f => ({
+      dt: f.dt,
+      temp: f.main.temp,
+      rain: f.rain?.['3h'] || 0,
+      description: f.weather?.[0]?.description,
+    })) || [];
+
+    return {
+      temp,
+      rainfall_mm,
+      forecast24h,
+      forecast72h,
+    };
+  } catch (err) {
+    console.error('[weatherApi] Failed to fetch weather:', err.message);
+    // Return default values on failure
+    return {
+      temp: 25,
+      rainfall_mm: 0,
+      forecast24h: [],
+      forecast72h: [],
+    };
+  }
+}
+
 function _get(url) {
   return new Promise((resolve, reject) => {
     https.get(url, (res) => {
@@ -51,4 +103,4 @@ function _get(url) {
   });
 }
 
-module.exports = { getCurrentWeather, getForecast };
+module.exports = { getCurrentWeather, getForecast, fetchWeather };

@@ -34,6 +34,33 @@ async function ingest(rawPayload, vendorType = 'generic') {
   return normalised;
 }
 
+/**
+ * Fetch the latest moisture reading for a specific crop.
+ * @param {string} cropId - UUID of the crop
+ * @returns {Promise<{ soil_moisture_pct: number, timestamp: string } | null>}
+ */
+async function fetchMoisture(cropId) {
+  try {
+    // TODO: Replace with actual sensor hardware query
+    // For now, return simulated data based on cropId to make testing predictable
+    
+    // Simulate occasional sensor failures (10% of the time)
+    if (Math.random() < 0.1) {
+      throw new Error('Sensor communication timeout');
+    }
+    
+    // Return mock data with some variation
+    const baseValue = 50 + (cropId.charCodeAt(0) % 40); // 50-90% range based on crop ID
+    return {
+      soil_moisture_pct: parseFloat(baseValue.toFixed(2)),
+      timestamp: new Date().toISOString(),
+    };
+  } catch (err) {
+    console.error(`[sensorIngest] Failed to fetch moisture for crop ${cropId}:`, err.message);
+    return null;
+  }
+}
+
 function _normalise(payload, vendorType) {
   // Generic passthrough — extend with vendor-specific transformers
   return {
@@ -50,4 +77,4 @@ function _normalise(payload, vendorType) {
   };
 }
 
-module.exports = { ingest };
+module.exports = { ingest, fetchMoisture };

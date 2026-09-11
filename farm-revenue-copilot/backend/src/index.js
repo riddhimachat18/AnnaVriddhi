@@ -5,11 +5,14 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const { initializeScheduler } = require('./jobs/scheduler');
 
 const irrigationRoutes    = require('./routes/irrigation');
 const gradingRoutes       = require('./routes/grading');
 const schemesRoutes       = require('./routes/schemes');
 const recommendationRoutes = require('./routes/recommendations');
+const webhookRoutes       = require('./routes/webhooks');
+const cropWrappedRoutes   = require('./routes/cropWrapped');
 
 const app  = express();
 const PORT = process.env.PORT || 4000;
@@ -25,6 +28,8 @@ app.use('/api/irrigation',      irrigationRoutes);
 app.use('/api/grading',         gradingRoutes);
 app.use('/api/schemes',         schemesRoutes);
 app.use('/api/recommendations', recommendationRoutes);
+app.use('/api/webhooks',        webhookRoutes);
+app.use('/api/crop-wrapped',    cropWrappedRoutes);
 
 // ── Health check ──
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
@@ -41,6 +46,9 @@ app.use((err, _req, res, _next) => {
 
 app.listen(PORT, () => {
   console.log(`[server] Farm Revenue Copilot API running on http://localhost:${PORT}`);
+  
+  // Initialize scheduled jobs
+  initializeScheduler();
 });
 
 module.exports = app;

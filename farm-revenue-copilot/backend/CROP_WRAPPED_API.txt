@@ -1,0 +1,635 @@
+================================================================================
+CROP WRAPPED API — Frontend Integration Guide
+================================================================================
+
+OVERVIEW
+--------
+The Crop Wrapped API provides a Spotify Wrapped-style seasonal farm review.
+It aggregates a farmer's season data into a comprehensive, shareable report.
+
+BASE URL: http://localhost:4000/api/crop-wrapped
+
+
+================================================================================
+AUTHENTICATION
+================================================================================
+
+All Crop Wrapped endpoints require authentication.
+Provide the farmer ID using ONE of these methods:
+
+1. Authorization Header (Recommended):
+   Authorization: Bearer <farmerId>
+
+2. Custom Header:
+   X-Farmer-Id: <farmerId>
+
+3. Query Parameter:
+   ?farmerId=<farmerId>
+
+Example:
+--------
+curl -H "Authorization: Bearer 123e4567-e89b-12d3-a456-426614174000" \
+     http://localhost:4000/api/crop-wrapped/456e7890-e89b-12d3-a456-426614174000
+
+
+================================================================================
+MAIN ENDPOINT: GET CROP WRAPPED REPORT
+================================================================================
+
+GET /api/crop-wrapped/:cropId
+
+Get complete Crop Wrapped report for a specific season.
+A season is represented by a crop record (from sowing to harvest).
+
+PARAMETERS
+----------
+- cropId (path parameter): UUID of the crop/season
+
+AUTHENTICATION
+--------------
+Required. Farmer can only access their own seasons.
+
+RESPONSE (200 OK)
+-----------------
+{
+  "success": true,
+  
+  "season": {
+    "id": "456e7890-e89b-12d3-a456-426614174000",
+    "name": "Kharif 2026",
+    "crop": "Tomato",
+    "variety": "Hybrid",
+    "startDate": "2026-06-01",
+    "endDate": "2026-09-30",
+    "status": "harvested",
+    "daysTracked": 120
+  },
+  
+  "overview": {
+    "recommendations": 37,
+    "actionsRecorded": 34,
+    "followed": 29,
+    "notFollowed": 5,
+    "unknown": 3,
+    "diseaseAlerts": 2
+  },
+  
+  "adherence": {
+    "overall": {
+      "percentage": 85.29,
+      "followed": 29,
+      "notFollowed": 5,
+      "unknown": 3,
+      "knownActions": 34
+    },
+    "byCategory": {
+      "irrigation": {
+        "followed": 10,
+        "notFollowed": 1,
+        "unknown": 0,
+        "percentage": 90.91
+      },
+      "fertilizer": {
+        "followed": 8,
+        "notFollowed": 3,
+        "unknown": 1,
+        "percentage": 72.73
+      },
+      "pesticide": {
+        "followed": 5,
+        "notFollowed": 0,
+        "unknown": 0,
+        "percentage": 100.00
+      }
+    }
+  },
+  
+  "disease": {
+    "available": true,
+    "totalAlerts": 2,
+    "majorChallenge": {
+      "title": "Early Blight Detected in Tomato",
+      "description": "Early Blight identified with 91% confidence...",
+      "detectedAt": "2026-07-15T08:30:00.000Z",
+      "farmerAction": "FOLLOWED"
+    },
+    "events": [
+      {
+        "title": "Early Blight Detected in Tomato",
+        "detectedAt": "2026-07-15T08:30:00.000Z",
+        "priority": "high",
+        "farmerAction": "FOLLOWED"
+      }
+    ]
+  },
+  
+  "financial": {
+    "available": true,
+    "predictedImpact": 48000,
+    "baselineRevenue": 136000,
+    "actualRevenue": 184000,
+    "difference": 48000,
+    "percentageIncrease": 35.29,
+    "grade": "A2"
+  },
+  
+  "seasonScore": {
+    "available": true,
+    "score": 86,
+    "components": {
+      "recommendationAdherence": {
+        "score": 85,
+        "weight": 0.4
+      },
+      "diseaseResponse": {
+        "score": 100,
+        "weight": 0.3
+      },
+      "actionTracking": {
+        "score": 92,
+        "weight": 0.3
+      }
+    }
+  },
+  
+  "insights": {
+    "whatWorked": [
+      "High recommendation adherence (85%) maintained throughout the season.",
+      "All disease alerts received timely farmer action."
+    ],
+    "whatToImprove": [
+      "Fertilizer recommendations had lower adherence (73%)."
+    ]
+  },
+  
+  "nextSeason": {
+    "continue": [
+      "Maintain timely irrigation practices.",
+      "Maintain timely pesticide practices."
+    ],
+    "improve": [
+      "Review fertilizer timing and follow-through."
+    ],
+    "watch": [
+      "Monitor for early blight detected in tomato earlier in the season."
+    ]
+  }
+}
+
+RESPONSE (404 Not Found)
+------------------------
+{
+  "error": "Season not found",
+  "message": "No crop found with the provided ID"
+}
+
+RESPONSE (403 Forbidden)
+------------------------
+{
+  "error": "Unauthorized",
+  "message": "You do not have access to this season"
+}
+
+RESPONSE (401 Unauthorized)
+---------------------------
+{
+  "error": "Authentication required",
+  "message": "Please provide farmerId via Authorization header..."
+}
+
+
+================================================================================
+FIELD MEANINGS
+================================================================================
+
+season
+------
+- id: Unique identifier for this season (same as cropId)
+- name: Display name (e.g., "Kharif 2026")
+- crop: Crop type (e.g., "Tomato", "Rice", "Wheat")
+- variety: Crop variety (may be null)
+- startDate: Season start date (sow date)
+- endDate: Season end date (harvest date, may be null if still active)
+- status: "active" | "harvested" | "failed"
+- daysTracked: Number of days from sowing to now (or harvest)
+
+overview
+--------
+- recommendations: Total recommendations generated (excluding do_nothing)
+- actionsRecorded: Recommendations with FOLLOWED or NOT_FOLLOWED action
+- followed: Recommendations the farmer followed
+- notFollowed: Recommendations the farmer did not follow
+- unknown: Recommendations with no recorded action
+- diseaseAlerts: High/medium priority pesticide recommendations (disease detections)
+
+adherence.overall
+-----------------
+- percentage: Adherence rate (followed / knownActions × 100)
+  IMPORTANT: Excludes UNKNOWN actions from denominator
+  May be null if knownActions = 0
+- followed: Count of followed recommendations
+- notFollowed: Count of not followed recommendations
+- unknown: Count of recommendations with no recorded action
+- knownActions: followed + notFollowed
+
+adherence.byCategory
+--------------------
+Category-wise breakdown. Categories present depend on actual data.
+Possible categories: irrigation, fertilizer, pesticide, cover, harvest, scheme
+Same structure as overall (followed, notFollowed, unknown, percentage)
+
+disease
+-------
+- available: Boolean - whether disease data exists
+- totalAlerts: Count of disease detection events
+- majorChallenge: The most significant disease challenge
+  - title: Disease name
+  - description: Full description
+  - detectedAt: ISO 8601 timestamp
+  - farmerAction: "FOLLOWED" | "NOT_FOLLOWED" | "UNKNOWN"
+- events: Array of all disease events (same structure as majorChallenge)
+
+financial
+---------
+- available: Boolean - whether financial data is available
+- If available = false:
+  - reason: String explaining why data is unavailable
+- If available = true:
+  - predictedImpact: Predicted revenue gain from followed recommendations (INR)
+  - baselineRevenue: Estimated revenue without following recommendations (INR)
+  - actualRevenue: Actual revenue from grading event (INR)
+  - difference: predictedImpact (INR)
+  - percentageIncrease: (predictedImpact / baselineRevenue × 100)
+    May be null if baselineRevenue = 0
+  - grade: Crop grade (e.g., "A2", "B1")
+
+seasonScore
+-----------
+- available: Boolean - whether score can be calculated
+- If available = false:
+  - reason: String explaining why
+- If available = true:
+  - score: Overall season score (0-100)
+  - components: Object with component scores
+    - recommendationAdherence: Based on adherence percentage
+    - diseaseResponse: Based on disease alert response rate
+    - actionTracking: Based on action recording rate
+    Each component has:
+    - score: 0-100
+    - weight: Component weight in final score (0.0-1.0)
+
+insights
+--------
+- whatWorked: Array of positive insight strings
+- whatToImprove: Array of improvement suggestion strings
+
+nextSeason
+----------
+- continue: Array of practices to continue
+- improve: Array of areas to improve
+- watch: Array of things to watch for
+
+
+================================================================================
+ENDPOINT: LOG FARMER ACTION
+================================================================================
+
+POST /api/crop-wrapped/actions
+
+Log a farmer's action for a recommendation.
+Used to track whether the farmer followed a recommendation.
+
+AUTHENTICATION
+--------------
+Required.
+
+REQUEST BODY
+------------
+{
+  "recommendationId": "uuid",
+  "cropId": "uuid",
+  "followed": "FOLLOWED" | "NOT_FOLLOWED" | "UNKNOWN",
+  "actionDetail": "Optional description"
+}
+
+RESPONSE (201 Created)
+----------------------
+{
+  "success": true,
+  "action": {
+    "id": "uuid",
+    "recommendation_id": "uuid",
+    "farmer_id": "uuid",
+    "crop_id": "uuid",
+    "followed": "FOLLOWED",
+    "action_detail": "Applied fertilizer as recommended",
+    "source": "APP",
+    "created_at": "2026-07-15T10:30:00.000Z"
+  }
+}
+
+RESPONSE (400 Bad Request)
+--------------------------
+{
+  "error": "Missing required fields",
+  "message": "recommendationId, cropId, and followed are required"
+}
+
+RESPONSE (404 Not Found)
+------------------------
+{
+  "error": "Recommendation not found",
+  "message": "No recommendation found for the provided IDs"
+}
+
+RESPONSE (403 Forbidden)
+------------------------
+{
+  "error": "Unauthorized",
+  "message": "You do not have access to this recommendation"
+}
+
+
+================================================================================
+ENDPOINT: LIST FARMER SEASONS
+================================================================================
+
+GET /api/crop-wrapped/farmer/:farmerId/seasons
+
+Get all seasons (crops) for a farmer.
+Useful for showing a list of available Crop Wrapped reports.
+
+PARAMETERS
+----------
+- farmerId (path parameter): UUID of the farmer
+
+AUTHENTICATION
+--------------
+Required. Farmers can only access their own seasons.
+
+RESPONSE (200 OK)
+-----------------
+{
+  "success": true,
+  "seasons": [
+    {
+      "id": "uuid",
+      "crop_type": "Tomato",
+      "variety": "Hybrid",
+      "sow_date": "2026-06-01",
+      "expected_harvest_date": "2026-09-30",
+      "completed_at": "2026-09-28T14:00:00.000Z",
+      "status": "harvested",
+      "season_name": "Kharif 2026"
+    },
+    {
+      "id": "uuid",
+      "crop_type": "Wheat",
+      "variety": null,
+      "sow_date": "2025-11-15",
+      "expected_harvest_date": "2026-04-15",
+      "completed_at": "2026-04-12T10:00:00.000Z",
+      "status": "harvested",
+      "season_name": "Rabi 2025-26"
+    }
+  ]
+}
+
+RESPONSE (403 Forbidden)
+------------------------
+{
+  "error": "Unauthorized",
+  "message": "You can only access your own seasons"
+}
+
+
+================================================================================
+DATA AVAILABILITY
+================================================================================
+
+IMPORTANT: Not all data may be available for every season.
+
+The API distinguishes between:
+- AVAILABLE DATA: Real data from the database
+- MISSING DATA: Data that was never recorded
+
+Guidelines:
+-----------
+1. Check the "available" field before displaying data sections
+2. Do NOT treat null/0 values as missing - they may be actual values
+3. Display appropriate messages when data is unavailable
+4. Example:
+   
+   if (response.financial.available) {
+     // Display financial summary
+   } else {
+     // Display: response.financial.reason
+   }
+
+Sections that may be unavailable:
+---------------------------------
+- disease: If no disease alerts occurred
+- financial: If no grading event exists
+- seasonScore: If insufficient data to calculate
+
+
+================================================================================
+AUTHENTICATION SETUP EXAMPLE
+================================================================================
+
+// JavaScript fetch example
+async function getCropWrapped(farmerId, cropId) {
+  const response = await fetch(
+    `http://localhost:4000/api/crop-wrapped/${cropId}`,
+    {
+      headers: {
+        'Authorization': `Bearer ${farmerId}`,
+        'Content-Type': 'application/json'
+      }
+    }
+  );
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message);
+  }
+  
+  return await response.json();
+}
+
+// React example with axios
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: 'http://localhost:4000/api',
+  headers: {
+    'Authorization': `Bearer ${farmerId}`
+  }
+});
+
+const report = await api.get(`/crop-wrapped/${cropId}`);
+
+
+================================================================================
+ERROR HANDLING
+================================================================================
+
+Always check the response status code:
+
+200 OK: Success
+201 Created: Action logged successfully
+400 Bad Request: Invalid request data
+401 Unauthorized: Authentication required/invalid
+403 Forbidden: No access to this resource
+404 Not Found: Resource not found
+500 Internal Server Error: Server error
+
+Error responses always have this structure:
+{
+  "error": "Error type",
+  "message": "Detailed error message"
+}
+
+
+================================================================================
+TESTING
+================================================================================
+
+Run the integration test:
+npm run test:crop-wrapped
+
+This will:
+1. Create test farmer and crop
+2. Create test recommendations
+3. Create test actions
+4. Generate Crop Wrapped report
+5. Display complete report
+6. Clean up test data
+
+
+================================================================================
+NOTES FOR FRONTEND DEVELOPMENT
+================================================================================
+
+1. RECOMMENDATION ADHERENCE CALCULATION
+   - Always use knownActions as denominator (followed + notFollowed)
+   - NEVER include unknown actions in the percentage calculation
+   - Example: 29 followed, 5 not followed, 3 unknown
+     Correct: 29 / 34 = 85.29%
+     Wrong: 29 / 37 = 78.38%
+
+2. NULL vs ZERO
+   - null percentage: No known actions to calculate from
+   - 0 percentage: All known actions were NOT_FOLLOWED
+   - These are different states
+
+3. SEASON STATUS
+   - "active": Season still ongoing
+   - "harvested": Season completed successfully
+   - "failed": Season failed (crop loss)
+
+4. DISEASE EVENTS
+   - Disease detections create pesticide-type recommendations
+   - High/medium priority = significant disease alert
+   - Low priority = preventive/minor issue
+
+5. FINANCIAL DATA
+   - predictedImpact: Gain from following recommendations
+   - actualRevenue: From grading event (estimated market price)
+   - If no grading event exists, financial.available = false
+
+6. SEASON SCORE
+   - 0-100 scale
+   - Weighted average of available components
+   - Missing components are excluded and weights normalized
+   - Not a scientific metric - it's a product engagement feature
+
+7. INSIGHTS
+   - Rule-based, deterministic
+   - Derived from actual season data
+   - Should be displayed as-is (already in display-ready format)
+
+8. NEXT SEASON
+   - Personalized recommendations based on current season
+   - Three categories: continue, improve, watch
+   - Each category may have 0 or more items
+
+
+================================================================================
+FRONTEND UI SUGGESTIONS
+================================================================================
+
+Recommended Spotify Wrapped-style flow:
+
+Screen 1: Season Overview
+  - Crop icon/image
+  - Season name
+  - Days tracked
+  - "Your Season in Review" headline
+
+Screen 2: Your Season Stats
+  - Recommendations count (large number)
+  - Actions recorded
+  - Disease alerts
+  - Visual indicators/icons
+
+Screen 3: Recommendation Score
+  - Large percentage (85%)
+  - "You followed X of Y recommendations"
+  - Progress bar/circular progress
+
+Screen 4: Category Breakdown
+  - List or cards for each category
+  - Irrigation: 91% ✅
+  - Fertilizer: 73% ⚠️
+  - Pesticide: 100% ✅
+
+Screen 5: Your Biggest Challenge
+  - Disease name
+  - Detection date
+  - Your action
+  - Outcome (if available)
+
+Screen 6: Financial Impact (if available)
+  - Predicted vs Actual
+  - Visual comparison (bar chart?)
+  - Revenue gain
+  - Grade badge
+
+Screen 7: Season Score
+  - Large score number (86/100)
+  - Component breakdown
+  - Visual star rating or gauge
+
+Screen 8: What Worked
+  - List of positive insights
+  - Celebration visual
+
+Screen 9: What to Improve
+  - List of improvement areas
+  - Constructive tone
+
+Screen 10: Next Season
+  - Continue / Improve / Watch sections
+  - Forward-looking, motivational
+
+Screen 11: Share
+  - Shareable summary card
+  - Social media integration
+
+Colors:
+- Green: High adherence, success
+- Yellow: Medium adherence, caution
+- Red: Low adherence, needs attention
+- Blue: Neutral information
+
+
+================================================================================
+CONTACT
+================================================================================
+
+For backend API issues or questions, contact the backend team.
+For feature requests or modifications, create a GitHub issue.
+
+API Version: 1.0
+Last Updated: 2026-09-11

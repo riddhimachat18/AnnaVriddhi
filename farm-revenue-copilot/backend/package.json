@@ -6,20 +6,43 @@
   "scripts": {
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
-    "lint": "eslint src --ext .js"
+    "lint": "eslint src --ext .js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:crop-wrapped": "node test-crop-wrapped.js",
+    "test:connection": "node test-connection.js",
+    "test:weather": "node test-weather.js",
+    "test:twilio": "node test-twilio.js",
+    "test:supabase": "node test-supabase-connection.js",
+    "test:supabase:rest": "node test-supabase-rest.js",
+    "test:crop-state": "node src/jobs/testCropState.js",
+    "test:alerts": "node src/jobs/testAlertJob.js",
+    "test:irrigation": "node src/jobs/testIrrigationPrediction.js",
+    "test:delivery": "node src/jobs/testDeliveryChannel.js",
+    "test:schemes": "node src/jobs/testSchemeMatching.js",
+    "migrate:supabase": "node migrate-to-supabase.js",
+    "job:crop-state": "node -e \"require('./src/jobs/cropStateJob').run().then(() => process.exit(0)).catch(err => { console.error(err); process.exit(1); })\"",
+    "job:alerts": "node -e \"require('./src/jobs/alertJob').run().then(() => process.exit(0)).catch(err => { console.error(err); process.exit(1); })\""
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.116.0",
+    "axios": "^1.20.0",
     "cors": "2.8.5",
     "dotenv": "16.4.5",
     "express": "4.19.2",
     "express-validator": "7.1.0",
     "helmet": "7.1.0",
     "morgan": "1.10.0",
+    "multer": "^2.3.0",
+    "node-cron": "3.0.3",
     "pg": "8.12.0",
+    "sharp": "^0.35.4",
+    "twilio": "5.3.5",
     "uuid": "10.0.0"
   },
   "devDependencies": {
     "eslint": "8.57.0",
+    "jest": "^30.5.1",
     "nodemon": "3.1.4"
   }
 }
