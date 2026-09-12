@@ -53,7 +53,11 @@ export default function Landing({ navigate }: { navigate: (s: string) => void })
           </div>
         </div>
         <button
-          onClick={() => navigate("dashboard")}
+          onClick={() => {
+            // Navigate to Auth screen instead of directly to dashboard
+            // This ensures proper authentication flow
+            navigate("signin");
+          }}
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -80,7 +84,7 @@ export default function Landing({ navigate }: { navigate: (s: string) => void })
             (e.currentTarget as HTMLElement).style.transform = "none";
           }}
         >
-          Open App →
+          Sign In →
         </button>
       </nav>
 
@@ -134,9 +138,9 @@ export default function Landing({ navigate }: { navigate: (s: string) => void })
           <Btn
             variant="primary"
             size="lg"
-            onClick={() => navigate("dashboard")}
+            onClick={() => navigate("signin")}
           >
-            Try Live Demo
+            Get Started
           </Btn>
           <Btn variant="ghost" size="lg">
             Watch 2-min overview
@@ -545,33 +549,28 @@ export default function Landing({ navigate }: { navigate: (s: string) => void })
             </div>
           )}
 
-          <button
-            onClick={() => navigate("dashboard")}
+          <div
             style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
-              borderRadius: radius.full,
-              fontWeight: 600,
-              fontFamily: "var(--font-body)",
-              cursor: "pointer",
-              background: "transparent",
-              color: C.sage,
-              border: `1.5px solid ${C.sage}`,
-              padding: "9px 18px",
-              fontSize: 13,
-              transition: "all 0.15s",
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLElement).style.background = C.sageTint;
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLElement).style.background = "transparent";
+              marginTop: 16,
+              padding: 16,
+              background: C.sageTint,
+              borderRadius: radius.md,
+              border: `1px solid ${C.line}`,
             }}
           >
-            Or try live demo
-          </button>
+            <div style={{ fontSize: 12, fontWeight: 600, color: C.sageDeep, marginBottom: 6 }}>
+              Try Demo Account
+            </div>
+            <div style={{ fontSize: 11, color: C.inkMuted, marginBottom: 8, lineHeight: 1.5 }}>
+              Experience the full app with sample farm data:
+            </div>
+            <div style={{ fontSize: 11, color: C.ink, fontFamily: 'monospace', background: C.surface, padding: '8px 10px', borderRadius: radius.sm, marginBottom: 4 }}>
+              Email: <strong>demo@123</strong>
+            </div>
+            <div style={{ fontSize: 11, color: C.ink, fontFamily: 'monospace', background: C.surface, padding: '8px 10px', borderRadius: radius.sm }}>
+              Password: <strong>123</strong>
+            </div>
+          </div>
         </div>
       </section>
 

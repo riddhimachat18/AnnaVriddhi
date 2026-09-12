@@ -40,8 +40,9 @@ class DiseasePredictor:
         self.model_path = Path(model_path)
         
         # Load checkpoint
+        # weights_only=False needed for PyTorch 2.6+ compatibility with legacy checkpoints
         print(f"Loading model from: {self.model_path}")
-        checkpoint = torch.load(self.model_path, map_location='cpu')
+        checkpoint = torch.load(self.model_path, map_location='cpu', weights_only=False)
         
         # Get class mapping
         if 'class_to_idx' not in checkpoint:

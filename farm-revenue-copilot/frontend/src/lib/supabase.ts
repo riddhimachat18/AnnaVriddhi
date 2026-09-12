@@ -19,7 +19,7 @@ export type Database = any; // TODO: Generate types with supabase-js CLI
 // Type definitions for domain entities
 export interface Farmer {
   id: string;
-  auth_user_id: string;
+  auth_user_id?: string;  // Firebase UID or Supabase Auth UUID
   name: string;
   phone?: string;
   state?: string;

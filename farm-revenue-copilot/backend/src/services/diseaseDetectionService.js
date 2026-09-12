@@ -154,8 +154,9 @@ async function isModelAvailable() {
   }
 
   try {
-    // Simple health check
-    await axios.get(`${MODEL_PROVIDER_URL}/health`, { timeout: 5000 });
+    // Derive base URL from MODEL_PROVIDER_URL (strip the /predict path)
+    const baseUrl = MODEL_PROVIDER_URL.replace(/\/predict\/?$/, '');
+    await axios.get(`${baseUrl}/health`, { timeout: 5000 });
     return true;
   } catch (err) {
     return false;

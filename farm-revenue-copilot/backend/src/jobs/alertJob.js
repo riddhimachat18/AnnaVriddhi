@@ -13,6 +13,7 @@ const recommendationService = require('../services/recommendationService');
 const revenueService = require('../services/revenueService');
 const weatherApi = require('../integrations/weatherApi');
 const { sendMessage } = require('../integrations/smsWhatsapp');
+const alertsService = require('../services/alertsService');
 
 // Default coordinates for weather (can be overridden per farmer/location)
 const DEFAULT_LAT = 18.5204; // Pune, Maharashtra
@@ -72,6 +73,13 @@ async function run() {
       `[alertJob] Done. Processed ${recommendationCount} crops, ` +
       `sent ${alertsSentCount} alerts.`
     );
+
+    // Run structured farmer_alerts evaluation (NPK, irrigation, pest)
+    try {
+      await alertsService.runFullEvaluation();
+    } catch (err) {
+      console.error('[alertJob] alertsService evaluation failed:', err.message);
+    }
   } catch (err) {
     console.error('[alertJob] Fatal error:', err);
     throw err;
@@ -131,11 +139,14 @@ async function processOneCrop(crop) {
     crop_type
   );
 
-  // Estimate revenue impact
-  const predictedImpact = await revenueService.estimateImpact(
+  // Estimate revenue impact (both ₹ and %)
+  const impactEstimate = await revenueService.estimateImpact(
     crop_id,
     recommendation.type
   );
+  
+  const predictedImpact = impactEstimate.predicted_revenue_impact || 0;
+  const revenueImpactPct = impactEstimate.revenue_impact_pct || 0;
 
   // Check if similar recommendation already exists recently (avoid spam)
   const recentCheck = await db.query(
@@ -158,8 +169,8 @@ async function processOneCrop(crop) {
   // Insert recommendation into database
   const insertResult = await db.query(
     `INSERT INTO recommendation_events 
-      (crop_id, type, priority, title, body, status, predicted_revenue_impact)
-     VALUES ($1, $2, $3, $4, $5, 'pending', $6)
+      (crop_id, type, priority, title, body, status, predicted_revenue_impact, revenue_impact_pct)
+     VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7)
      RETURNING id`,
     [
       crop_id,
@@ -168,6 +179,7 @@ async function processOneCrop(crop) {
       recommendation.title,
       recommendation.body,
       predictedImpact,
+      revenueImpactPct,
     ]
   );
 
@@ -175,7 +187,7 @@ async function processOneCrop(crop) {
 
   console.log(
     `[alertJob] Created ${recommendation.type} recommendation for crop ${crop_id} ` +
-    `(${crop_type}): priority=${recommendation.priority}, impact=₹${predictedImpact}`
+    `(${crop_type}): priority=${recommendation.priority}, impact=₹${predictedImpact} (${revenueImpactPct}%)`
   );
 
   // Send notification if action is needed (not do_nothing) and priority is medium/high
@@ -190,6 +202,7 @@ async function processOneCrop(crop) {
           {
             crop_type: crop_type || 'crop',
             predicted_revenue_impact: Math.abs(predictedImpact).toFixed(0),
+            revenue_impact_pct: revenueImpactPct >= 0 ? '+' + revenueImpactPct.toFixed(1) : revenueImpactPct.toFixed(1),
             suggested_amount: recommendation.body.match(/(\d+)mm/)?.[1] || '', // Extract mm amount if present
           },
           'hi' // Default to Hindi
@@ -203,7 +216,7 @@ async function processOneCrop(crop) {
         
         console.log(
           `[alertJob] Sent ${recommendation.type} alert to ${farmer_phone} ` +
-          `for crop ${crop_id}`
+          `for crop ${crop_id} with ₹${predictedImpact} (${revenueImpactPct}%) impact`
         );
       } catch (err) {
         console.error(

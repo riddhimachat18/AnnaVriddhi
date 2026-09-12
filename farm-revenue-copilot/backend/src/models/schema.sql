@@ -147,6 +147,10 @@ ADD COLUMN IF NOT EXISTS data_quality TEXT DEFAULT 'complete';
 ALTER TABLE recommendation_events
 ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMPTZ;
 
+-- Add revenue impact percentage tracking to recommendations (Feature A)
+ALTER TABLE recommendation_events
+ADD COLUMN IF NOT EXISTS revenue_impact_pct NUMERIC(5,2);
+
 -- Note: recommendation_events.type supports values:
 -- 'irrigation', 'fertilizer', 'pesticide', 'cover', 'do_nothing', 'harvest', 'scheme'
 
@@ -177,3 +181,16 @@ ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;
 -- Add indexes for season queries
 CREATE INDEX IF NOT EXISTS idx_crops_status ON crops (status);
 CREATE INDEX IF NOT EXISTS idx_crops_season ON crops (farmer_id, season_name);
+
+-- ── AI Advisor Conversations (Feature B) ─────────────────────────────
+-- Optional: for persisting conversation history and analytics
+CREATE TABLE IF NOT EXISTS advisor_conversations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  farmer_id UUID NOT NULL REFERENCES farmers(id) ON DELETE CASCADE,
+  query TEXT NOT NULL,
+  response TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_advisor_conversations_farmer ON advisor_conversations (farmer_id);
+CREATE INDEX IF NOT EXISTS idx_advisor_conversations_created ON advisor_conversations (created_at DESC);

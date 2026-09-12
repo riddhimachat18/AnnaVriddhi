@@ -20,11 +20,13 @@
     "test:irrigation": "node src/jobs/testIrrigationPrediction.js",
     "test:delivery": "node src/jobs/testDeliveryChannel.js",
     "test:schemes": "node src/jobs/testSchemeMatching.js",
+    "test:schemes-api": "node test-schemes.js",
     "migrate:supabase": "node migrate-to-supabase.js",
     "job:crop-state": "node -e \"require('./src/jobs/cropStateJob').run().then(() => process.exit(0)).catch(err => { console.error(err); process.exit(1); })\"",
     "job:alerts": "node -e \"require('./src/jobs/alertJob').run().then(() => process.exit(0)).catch(err => { console.error(err); process.exit(1); })\""
   },
   "dependencies": {
+    "@google/generative-ai": "^0.21.0",
     "@supabase/supabase-js": "^2.116.0",
     "axios": "^1.20.0",
     "cors": "2.8.5",

@@ -17,7 +17,7 @@ interface SignupForm {
 }
 
 export default function Auth({ navigate }: { navigate: (s: string) => void }) {
-  const { signIn, signUp, farmer, isAuthenticated } = useAuth();
+  const { signIn, signUp, signInWithGoogle, farmer, isAuthenticated } = useAuth();
   const [mode, setMode] = useState<AuthMode>('signin');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -251,6 +251,67 @@ export default function Auth({ navigate }: { navigate: (s: string) => void }) {
                   }}
                 >
                   Create one
+                </button>
+              </div>
+
+              {/* Social Sign In */}
+              <div style={{ marginTop: 24, paddingTop: 24, borderTop: `1px solid ${C.line}` }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: C.inkMuted, textAlign: 'center', marginBottom: 16, letterSpacing: '0.05em' }}>
+                  OR CONTINUE WITH
+                </div>
+                <button
+                  onClick={async () => {
+                    setLoading(true);
+                    setError(null);
+                    try {
+                      await signInWithGoogle();
+                      // Navigation will happen automatically via AppContent useEffect
+                    } catch (err) {
+                      setError(err instanceof Error ? err.message : 'Google sign in failed');
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  disabled={loading}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 10,
+                    padding: '12px 16px',
+                    borderRadius: radius.md,
+                    border: `1.5px solid ${C.line}`,
+                    background: C.surface,
+                    color: C.ink,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    opacity: loading ? 0.6 : 1,
+                    fontFamily: 'var(--font-body)',
+                    transition: 'all 0.15s',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!loading) {
+                      (e.currentTarget as HTMLElement).style.background = C.bg;
+                      (e.currentTarget as HTMLElement).style.borderColor = C.lineStrong;
+                      (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 4px rgba(0,0,0,0.08)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLElement).style.background = C.surface;
+                    (e.currentTarget as HTMLElement).style.borderColor = C.line;
+                    (e.currentTarget as HTMLElement).style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)';
+                  }}
+                >
+                  <svg width="20" height="20" viewBox="0 0 18 18" fill="none">
+                    <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/>
+                    <path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z" fill="#34A853"/>
+                    <path d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707 0-.593.102-1.167.282-1.707V4.961H.957C.347 6.175 0 7.55 0 9s.348 2.825.957 4.039l3.007-2.332z" fill="#FBBC05"/>
+                    <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+                  </svg>
+                  <span>Continue with Google</span>
                 </button>
               </div>
             </>

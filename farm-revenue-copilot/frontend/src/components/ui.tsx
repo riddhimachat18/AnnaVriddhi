@@ -118,12 +118,14 @@ export function Btn({
   onClick,
   fullWidth,
   size = "md",
+  disabled = false,
 }: {
   children: React.ReactNode;
   variant?: "primary" | "secondary" | "ghost" | "danger";
   onClick?: () => void;
   fullWidth?: boolean;
   size?: "sm" | "md" | "lg";
+  disabled?: boolean;
 }) {
   const styles: Record<string, React.CSSProperties> = {
     primary: { background: C.sage, color: "#fff", border: "none", boxShadow: shadow.btn },
@@ -139,6 +141,7 @@ export function Btn({
   return (
     <button
       onClick={onClick}
+      disabled={disabled}
       style={{
         display: "inline-flex",
         alignItems: "center",
@@ -147,18 +150,21 @@ export function Btn({
         borderRadius: radius.full,
         fontWeight: 600,
         fontFamily: "var(--font-body)",
-        cursor: "pointer",
+        cursor: disabled ? "not-allowed" : "pointer",
         transition: "all 0.15s",
         width: fullWidth ? "100%" : undefined,
+        opacity: disabled ? 0.5 : 1,
         ...styles[variant],
         ...sizes[size],
       }}
       onMouseEnter={(e) => {
+        if (disabled) return;
         const el = e.currentTarget as HTMLElement;
         el.style.opacity = "0.88";
         el.style.transform = "translateY(-1px)";
       }}
       onMouseLeave={(e) => {
+        if (disabled) return;
         const el = e.currentTarget as HTMLElement;
         el.style.opacity = "1";
         el.style.transform = "none";

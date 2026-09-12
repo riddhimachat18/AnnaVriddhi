@@ -1,8 +1,13 @@
+import { useState, useEffect } from "react";
 import { C, radius } from "../tokens";
 import { Card, CircularGauge, Sparkline, Badge, PageHeader, SectionLabel, Btn } from "../components/ui";
 import type { Screen } from "../tokens";
+import { useAuth } from "../contexts/AuthContext";
+import { useData } from "../contexts/DataContext";
+import { supabase } from "../lib/supabase";
 
-const weekData = {
+// Demo data for demo@123 only
+const DEMO_WEEK_DATA = {
   moisture: [68, 72, 75, 71, 74, 70, 74],
   health: [78, 79, 80, 81, 80, 82, 82],
   disease: [12, 14, 15, 18, 17, 18, 18],
@@ -11,23 +16,148 @@ const weekData = {
 const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Today"];
 
 export default function CropCondition({ navigate }: { navigate: (s: Screen) => void }) {
+  const { farmer } = useAuth();
+  const { currentCrop, cropHealth, loading: dataLoading } = useData();
+  const isDemoAccount = localStorage.getItem('is_demo_account') === 'true';
+  
+  const [weekData, setWeekData] = useState(DEMO_WEEK_DATA);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadWeekData();
+  }, [currentCrop?.id, isDemoAccount]);
+
+  const loadWeekData = async () => {
+    if (isDemoAccount) {
+      setWeekData(DEMO_WEEK_DATA);
+      setLoading(false);
+      return;
+    }
+
+    if (!currentCrop?.id) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      // Load last 7 days of crop health data
+      const fromDate = new Date();
+      fromDate.setDate(fromDate.getDate() - 6);
+
+      const { data, error } = await supabase
+        .from('crop_health_daily')
+        .select('*')
+        .eq('crop_id', currentCrop.id)
+        .gte('date', fromDate.toISOString().split('T')[0])
+        .order('date', { ascending: true })
+        .limit(7);
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        setWeekData({
+          moisture: data.map(d => d.soil_moisture_pct || 0),
+          health: data.map(d => d.health_score || 0),
+          disease: data.map(d => d.disease_risk_score || 0),
+        });
+      } else {
+        // No historical data, use current data repeated
+        const current = {
+          moisture: Array(7).fill(cropHealth?.soil_moisture_pct || 0),
+          health: Array(7).fill(cropHealth?.health_score || 0),
+          disease: Array(7).fill(0),
+        };
+        setWeekData(current);
+      }
+    } catch (err) {
+      console.error('Error loading week data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading || dataLoading) {
+    return (
+      <div>
+        <PageHeader
+          title="Crop Condition"
+          subtitle="Loading data..."
+          back="Dashboard"
+          onBack={() => navigate("dashboard")}
+        />
+        <div style={{ textAlign: "center", padding: 60 }}>
+          <div style={{ fontSize: 14, color: C.inkMuted }}>Loading crop condition...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isDemoAccount && !currentCrop) {
+    return (
+      <div>
+        <PageHeader
+          title="Crop Condition"
+          subtitle="No crop selected"
+          back="Dashboard"
+          onBack={() => navigate("dashboard")}
+        />
+        <div style={{ textAlign: "center", padding: 60 }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>◈</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: C.ink, marginBottom: 8 }}>
+            No Active Crop
+          </div>
+          <div style={{ fontSize: 14, color: C.inkMuted, marginBottom: 24 }}>
+            Set up your farm and plant a crop to monitor its condition
+          </div>
+          <button
+            onClick={() => navigate("settings")}
+            style={{
+              padding: "10px 20px",
+              background: C.sage,
+              color: "#fff",
+              border: "none",
+              borderRadius: radius.md,
+              cursor: "pointer",
+              fontSize: 14,
+              fontWeight: 600,
+            }}
+          >
+            Set Up Farm →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Use demo data for demo account, real data for others
+  const cropName = isDemoAccount ? "Wheat" : (currentCrop?.crop_name || "Crop");
+  const plotName = isDemoAccount ? "Plot A" : "Current Plot";
+  const healthScore = isDemoAccount ? 82 : (cropHealth?.health_score || 0);
+  const soilMoisture = isDemoAccount ? 74 : (cropHealth?.soil_moisture_pct || 0);
+  const nitrogenLevel = isDemoAccount ? 58 : (cropHealth?.nitrogen_pct || 0);
+  const diseaseRisk = isDemoAccount ? 18 : (cropHealth?.disease_risk_score || 0);
+
   return (
     <div>
       <PageHeader
         title="Crop Condition"
-        subtitle="Plot A · Wheat · Last updated 2h ago"
+        subtitle={`${plotName} · ${cropName} · Last updated ${isDemoAccount ? '2h ago' : 'recently'}`}
         back="Dashboard"
         onBack={() => navigate("dashboard")}
-        actions={<Badge color={C.sage} bg={C.sageTint} size="lg">Healthy — Score 82</Badge>}
+        actions={
+          <Badge color={healthScore >= 70 ? C.sage : C.amber} bg={healthScore >= 70 ? C.sageTint : C.amberTint} size="lg">
+            {healthScore >= 70 ? 'Healthy' : 'Monitor'} — Score {healthScore}
+          </Badge>
+        }
       />
 
       {/* Circular gauges row */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 20 }}>
         {[
-          { value: 74, label: "Soil Moisture", unit: "%", color: C.blue },
-          { value: 82, label: "Health Index", unit: "/100", color: C.sage, max: 100 },
-          { value: 18, label: "Disease Risk", unit: "%", color: C.rust },
-          { value: 58, label: "Nitrogen", unit: "%", color: C.amber },
+          { value: soilMoisture, label: "Soil Moisture", unit: "%", color: C.blue },
+          { value: healthScore, label: "Health Index", unit: "/100", color: C.sage, max: 100 },
+          { value: diseaseRisk, label: "Disease Risk", unit: "%", color: C.rust },
+          { value: nitrogenLevel, label: "Nitrogen", unit: "%", color: C.amber },
         ].map(({ value, label, unit, color, max }) => (
           <Card key={label} style={{ display: "flex", justifyContent: "center", padding: "28px 16px" }}>
             <CircularGauge value={value} max={max ?? 100} label={label} unit={unit} color={color} size={140} />

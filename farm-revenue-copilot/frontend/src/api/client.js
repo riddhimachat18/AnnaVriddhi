@@ -13,12 +13,18 @@ const client = axios.create({
   },
 });
 
-// Attach auth token if present
+// Attach auth token and farmer ID if present
 client.interceptors.request.use((config) => {
-  const token = localStorage.getItem('auth_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  // Try to get farmer ID from localStorage (set by AuthContext)
+  const farmerId = localStorage.getItem('farmer_id');
+  
+  // Backend auth middleware supports multiple methods
+  // Use Authorization header with farmer ID as bearer token
+  if (farmerId) {
+    config.headers.Authorization = `Bearer ${farmerId}`;
+    config.headers['X-Farmer-Id'] = farmerId;
   }
+  
   return config;
 });
 

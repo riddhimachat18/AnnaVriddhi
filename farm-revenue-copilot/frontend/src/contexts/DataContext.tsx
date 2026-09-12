@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import * as supabaseService from '../services/supabaseService';
+import { getDemoData } from '../services/demoDataService';
 import type {
   Crop,
   CropHealthDaily,
@@ -144,11 +145,54 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setError(null);
 
     try {
-      // Load plots and crops
+      // Check if this is demo account
+      const isDemoAccount = localStorage.getItem('is_demo_account') === 'true';
+      
+      if (isDemoAccount) {
+        console.log('Loading demo data for demo account');
+        const demoData = getDemoData();
+        
+        // Convert demo data to app format
+        setPlots([]);
+        setCrops(demoData.crops as any);
+        setActiveSeason(null);
+        
+        // Set current crop to first available
+        if (demoData.crops.length > 0 && !currentCrop) {
+          setCurrentCrop(demoData.crops[0] as any);
+        }
+        
+        // Set demo recommendations and alerts
+        setRecommendations(demoData.recommendations as any);
+        setTopRecommendations(demoData.recommendations.slice(0, 3) as any);
+        setAlerts(demoData.alerts as any);
+        setActiveAlerts(demoData.alerts as any);
+        setUnreadMessages([]);
+        
+        setLoading(false);
+        return;
+      }
+
+      // Real user - load from database
+      const plotsPromise = supabaseService.getPlots(farmer.id).catch(err => {
+        console.error('Error loading plots:', err);
+        return [];
+      });
+      
+      const cropsPromise = supabaseService.getCrops(farmer.id).catch(err => {
+        console.error('Error loading crops:', err);
+        return [];
+      });
+      
+      const seasonPromise = supabaseService.getActiveSeason(farmer.id).catch(err => {
+        console.error('Error loading season:', err);
+        return null;
+      });
+
       const [plotsData, cropsData, season] = await Promise.all([
-        supabaseService.getPlots(farmer.id),
-        supabaseService.getCrops(farmer.id),
-        supabaseService.getActiveSeason(farmer.id),
+        plotsPromise,
+        cropsPromise,
+        seasonPromise,
       ]);
 
       setPlots(plotsData);
@@ -160,15 +204,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         setCurrentCrop(cropsData[0]);
       }
 
-      // Load recommendations, alerts, and messages
-      await Promise.all([
+      // Load recommendations, alerts, and messages - non-blocking
+      Promise.all([
         refreshRecommendations(),
         refreshAlerts(),
         refreshMessages(),
-      ]);
+      ]).catch(err => {
+        console.error('Error loading additional data:', err);
+      });
     } catch (err) {
       console.error('Error refreshing data:', err);
-      setError('Failed to load farm data');
+      // Don't set error - allow app to continue with empty data
     } finally {
       setLoading(false);
     }
