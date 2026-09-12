@@ -1,8 +1,44 @@
 import { C, shadow, radius } from "../tokens";
 import { Card, GaugeBar, IconBadge, Badge, StatTile, SectionLabel, Btn } from "../components/ui";
 import type { Screen } from "../tokens";
+import { useAuth } from "../contexts/AuthContext";
+import { useData } from "../contexts/DataContext";
 
 export default function Dashboard({ navigate }: { navigate: (s: Screen) => void }) {
+  const { farmer } = useAuth();
+  const { currentCrop, cropHealth, topRecommendations, loading } = useData();
+  const isDemoAccount = localStorage.getItem('is_demo_account') === 'true';
+
+  // Show loading state
+  if (loading && !isDemoAccount) {
+    return (
+      <div style={{ textAlign: "center", padding: 60 }}>
+        <div style={{ fontSize: 16, color: C.inkMuted }}>Loading your dashboard...</div>
+      </div>
+    );
+  }
+
+  // For demo account, use hardcoded values
+  const farmInfo = isDemoAccount ? {
+    farmerName: "Ramesh Kumar",
+    plotName: "Plot A",
+    area: "2.5 acres",
+    cropName: "Wheat",
+    season: "Kharif 2024"
+  } : {
+    farmerName: farmer?.name || "Farmer",
+    plotName: currentCrop ? "Active Crop" : "No Crop",
+    area: currentCrop?.area_ac ? `${currentCrop.area_ac} acres` : "—",
+    cropName: currentCrop?.crop_name || "No crop planted",
+    season: "Current Season"
+  };
+
+  // Use actual data for real users, demo data for demo account
+  const soilMoisture = isDemoAccount ? 74 : (cropHealth?.soil_moisture_pct || 0);
+  const temperature = isDemoAccount ? 26 : (cropHealth?.ambient_temp_c || 0);
+  const diseaseRisk = isDemoAccount ? "Low" : (cropHealth?.disease_risk_level || "Unknown");
+  const cropHealthScore = isDemoAccount ? 82 : (cropHealth?.health_score || 0);
+
   return (
     <div>
       {/* Top header */}
@@ -19,9 +55,11 @@ export default function Dashboard({ navigate }: { navigate: (s: Screen) => void 
             <div style={{ fontFamily: "var(--font-display)", fontSize: 24, fontWeight: 700, color: C.sageDeep, letterSpacing: "-0.02em" }}>
               AnnaVriddhi
             </div>
-            <Badge color={C.sage} bg={C.sageTint}>Kharif 2024</Badge>
+            <Badge color={C.sage} bg={C.sageTint}>{farmInfo.season}</Badge>
           </div>
-          <div style={{ fontSize: 12, color: C.inkMuted }}>Ramesh's Farm · Plot A · 2.5 acres · Wheat</div>
+          <div style={{ fontSize: 12, color: C.inkMuted }}>
+            {farmInfo.farmerName}'s Farm · {farmInfo.plotName} · {farmInfo.area} · {farmInfo.cropName}
+          </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ fontSize: 12, color: C.inkMuted }}>Thu, 14 Nov 2024</div>
@@ -32,49 +70,40 @@ export default function Dashboard({ navigate }: { navigate: (s: Screen) => void 
         </div>
       </div>
 
-      {/* Status hero card */}
-      <div
-        style={{
-          background: `linear-gradient(135deg, ${C.sageTint} 0%, #d4e8d6 100%)`,
-          borderRadius: radius.xxl,
-          padding: "28px 32px",
-          marginBottom: 20,
-          display: "flex",
-          alignItems: "center",
-          gap: 24,
-          border: `1px solid ${C.sage}33`,
-          boxShadow: `0 4px 24px ${C.sage}18`,
-          cursor: "pointer",
-          transition: "all 0.2s",
-          position: "relative",
-          overflow: "hidden",
-        }}
-        onClick={() => navigate("all-clear")}
-        onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.transform = "translateY(-1px)")}
-        onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.transform = "none")}
-      >
-        <div style={{ position: "absolute", right: -20, top: -20, width: 160, height: 160, borderRadius: "50%", background: `${C.sage}12` }} />
-        <div style={{ fontSize: 52 }}>✓</div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 700, color: C.sageDeep, letterSpacing: "-0.02em", marginBottom: 4 }}>
-            All clear today — crop is healthy
-          </div>
-          <div style={{ fontSize: 13, color: C.inkMuted }}>
-            Crop health score: <strong style={{ color: C.sageDeep }}>82 / 100</strong> · Last updated 2h ago
-          </div>
-        </div>
-        <div style={{ textAlign: "right", flexShrink: 0 }}>
-          <div style={{ fontSize: 11, color: C.inkMuted, marginBottom: 4 }}>No action needed</div>
-          <Badge color={C.sage} bg={`${C.sage}22`} size="lg">Doing nothing saves ₹420</Badge>
-        </div>
-      </div>
-
       {/* Stat tiles row */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 20 }}>
-        <StatTile icon="≈" iconBg={C.blueTint} label="Soil Moisture" value="74%" sub="Optimal range 65–80%" color={C.blue} />
-        <StatTile icon="▲" iconBg={C.amberTint} label="Temperature" value="26°C" sub="Feels like 28°C" color={C.amber} />
-        <StatTile icon="◈" iconBg={C.sageTint} label="Rain forecast" value="None" sub="Next 5 days clear" color={C.sage} />
-        <StatTile icon="⊕" iconBg={C.sageTint} label="Disease risk" value="Low" sub="No anomaly detected" color={C.sageDeep} />
+        <StatTile 
+          icon="≈" 
+          iconBg={C.blueTint} 
+          label="Soil Moisture" 
+          value={soilMoisture > 0 ? `${soilMoisture}%` : "—"} 
+          sub={soilMoisture > 0 ? "Optimal range 65–80%" : "No data available"} 
+          color={C.blue} 
+        />
+        <StatTile 
+          icon="▲" 
+          iconBg={C.amberTint} 
+          label="Temperature" 
+          value={temperature > 0 ? `${temperature}°C` : "—"} 
+          sub={temperature > 0 ? `Feels like ${temperature + 2}°C` : "No data available"} 
+          color={C.amber} 
+        />
+        <StatTile 
+          icon="◈" 
+          iconBg={C.sageTint} 
+          label="Rain forecast" 
+          value={isDemoAccount ? "None" : "—"} 
+          sub={isDemoAccount ? "Next 5 days clear" : "Weather data loading..."} 
+          color={C.sage} 
+        />
+        <StatTile 
+          icon="⊕" 
+          iconBg={C.sageTint} 
+          label="Disease risk" 
+          value={diseaseRisk} 
+          sub={diseaseRisk !== "Unknown" ? "Based on latest scan" : "No data available"} 
+          color={C.sageDeep} 
+        />
       </div>
 
       {/* Main content: gauges + recommendation */}
@@ -84,11 +113,41 @@ export default function Dashboard({ navigate }: { navigate: (s: Screen) => void 
           <SectionLabel>Crop vitals — 7 day trend</SectionLabel>
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             {[
-              { label: "Soil moisture", value: 74, color: C.blue, icon: "≈", trend: "+3% from yesterday" },
-              { label: "Crop health index", value: 82, color: C.sage, icon: "◈", trend: "Stable" },
-              { label: "Nitrogen level (N)", value: 58, color: C.amber, icon: "⊕", trend: "Below optimal — monitor" },
-              { label: "Disease probability", value: 18, color: C.rust, icon: "!", trend: "Low risk" },
-              { label: "Canopy cover", value: 91, color: C.sageDeep, icon: "○", trend: "On track for stage" },
+              { 
+                label: "Soil moisture", 
+                value: isDemoAccount ? 74 : (soilMoisture || 0), 
+                color: C.blue, 
+                icon: "≈", 
+                trend: isDemoAccount ? "+3% from yesterday" : (soilMoisture > 0 ? "Current reading" : "No data") 
+              },
+              { 
+                label: "Crop health index", 
+                value: isDemoAccount ? 82 : (cropHealthScore || 0), 
+                color: C.sage, 
+                icon: "◈", 
+                trend: isDemoAccount ? "Stable" : (cropHealthScore > 0 ? "Based on recent data" : "No data") 
+              },
+              { 
+                label: "Nitrogen level (N)", 
+                value: isDemoAccount ? 58 : (cropHealth?.nitrogen_pct || 0), 
+                color: C.amber, 
+                icon: "⊕", 
+                trend: isDemoAccount ? "Below optimal — monitor" : (cropHealth?.nitrogen_pct ? "Current level" : "No data") 
+              },
+              { 
+                label: "Disease probability", 
+                value: isDemoAccount ? 18 : 0, 
+                color: C.rust, 
+                icon: "!", 
+                trend: isDemoAccount ? "Low risk" : "No data" 
+              },
+              { 
+                label: "Canopy cover", 
+                value: isDemoAccount ? 91 : (cropHealth?.canopy_cover_pct || 0), 
+                color: C.sageDeep, 
+                icon: "○", 
+                trend: isDemoAccount ? "On track for stage" : (cropHealth?.canopy_cover_pct ? "Current reading" : "No data") 
+              },
             ].map(({ label, value, color, icon, trend }) => (
               <div key={label}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
@@ -108,33 +167,51 @@ export default function Dashboard({ navigate }: { navigate: (s: Screen) => void 
           onClick={() => navigate("recommendation")}
         >
           <SectionLabel>Top recommendation</SectionLabel>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <IconBadge bg={C.amberTint} size={52}>⊙</IconBadge>
-            <div>
-              <div style={{ fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 700, color: C.ink, lineHeight: 1.2 }}>Harvest in 8–10 days</div>
-              <div style={{ fontSize: 11, color: C.inkMuted, marginTop: 2 }}>Optimal price window opening</div>
+          {(isDemoAccount || (topRecommendations && topRecommendations.length > 0)) ? (
+            <>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <IconBadge bg={C.amberTint} size={52}>⊙</IconBadge>
+                <div>
+                  <div style={{ fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 700, color: C.ink, lineHeight: 1.2 }}>
+                    {isDemoAccount ? "Harvest in 8–10 days" : (topRecommendations[0]?.title || "Check recommendations")}
+                  </div>
+                  <div style={{ fontSize: 11, color: C.inkMuted, marginTop: 2 }}>
+                    {isDemoAccount ? "Optimal price window opening" : (topRecommendations[0]?.type || "Action needed")}
+                  </div>
+                </div>
+              </div>
+              <p style={{ fontSize: 12, color: C.inkMuted, lineHeight: 1.6, margin: 0 }}>
+                {isDemoAccount 
+                  ? "Maturity indicators strong. Mandi prices trending up this week. Weather clear through Nov 22. Earlier harvest risks lower grade; later risks weather exposure."
+                  : (topRecommendations[0]?.body || "View details for more information")
+                }
+              </p>
+              <div
+                style={{
+                  background: C.sageTint,
+                  borderRadius: radius.md,
+                  padding: "12px 16px",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <span style={{ fontSize: 11, color: C.inkMuted, fontWeight: 500 }}>Expected revenue impact</span>
+                <span style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 20, color: C.sageDeep, letterSpacing: "-0.02em" }}>
+                  {isDemoAccount ? "+₹1,840" : (topRecommendations[0]?.revenue_impact_inr ? `+₹${topRecommendations[0].revenue_impact_inr}` : "—")}
+                </span>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <Btn variant="primary" fullWidth onClick={() => navigate("recommendation")}>View plan →</Btn>
+                <Btn variant="secondary" fullWidth>Later</Btn>
+              </div>
+            </>
+          ) : (
+            <div style={{ textAlign: "center", padding: "20px 0" }}>
+              <div style={{ fontSize: 14, color: C.inkMuted, marginBottom: 12 }}>No recommendations yet</div>
+              <div style={{ fontSize: 12, color: C.inkMuted }}>Plant a crop to receive personalized recommendations</div>
             </div>
-          </div>
-          <p style={{ fontSize: 12, color: C.inkMuted, lineHeight: 1.6, margin: 0 }}>
-            Maturity indicators strong. Mandi prices trending up this week. Weather clear through Nov 22. Earlier harvest risks lower grade; later risks weather exposure.
-          </p>
-          <div
-            style={{
-              background: C.sageTint,
-              borderRadius: radius.md,
-              padding: "12px 16px",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <span style={{ fontSize: 11, color: C.inkMuted, fontWeight: 500 }}>Expected revenue impact</span>
-            <span style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 20, color: C.sageDeep, letterSpacing: "-0.02em" }}>+₹1,840</span>
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <Btn variant="primary" fullWidth onClick={() => navigate("recommendation")}>View plan →</Btn>
-            <Btn variant="secondary" fullWidth>Later</Btn>
-          </div>
+          )}
         </Card>
       </div>
 

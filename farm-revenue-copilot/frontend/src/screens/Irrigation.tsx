@@ -1,8 +1,12 @@
+import { useState, useEffect } from "react";
 import { C, radius, shadow } from "../tokens";
 import { Card, CircularGauge, PageHeader, Badge, Btn, GaugeBar } from "../components/ui";
 import type { Screen } from "../tokens";
+import { useData } from "../contexts/DataContext";
+import { getIrrigationSchedule } from "../api/irrigation";
 
-const forecast = [
+// Demo data for demo account
+const DEMO_FORECAST = [
   { day: "Today", icon: "◉", temp: "26°C", rain: "0mm" },
   { day: "Fri", icon: "⛅", temp: "24°C", rain: "0mm" },
   { day: "Sat", icon: "◉", temp: "27°C", rain: "0mm" },
@@ -12,7 +16,57 @@ const forecast = [
   { day: "Wed", icon: "◉", temp: "25°C", rain: "0mm" },
 ];
 
+const DEMO_IRRIGATION = {
+  currentMoisture: 74,
+  lowerThreshold: 65,
+  upperThreshold: 80,
+  waterDeficit: 0,
+  etRate: 4.2,
+  lastIrrigated: 4,
+  cropWaterNeed: 5.1,
+  nextIrrigationDays: 3,
+  revenueImpact: 620,
+};
+
 export default function Irrigation({ navigate }: { navigate: (s: Screen) => void }) {
+  const { currentCrop } = useData();
+  const [irrigationData, setIrrigationData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const isDemoAccount = localStorage.getItem('is_demo_account') === 'true';
+
+  useEffect(() => {
+    async function loadIrrigationData() {
+      // Demo account - use hardcoded data
+      if (isDemoAccount) {
+        setIrrigationData(DEMO_IRRIGATION);
+        setLoading(false);
+        return;
+      }
+
+      // Real user - fetch from backend
+      if (!currentCrop?.id) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const data = await getIrrigationSchedule(currentCrop.id);
+        setIrrigationData(data);
+        setError(null);
+      } catch (err) {
+        console.error('Failed to load irrigation data:', err);
+        setError('Failed to load irrigation data');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadIrrigationData();
+  }, [currentCrop?.id, isDemoAccount]);
+
+  const forecast = isDemoAccount ? DEMO_FORECAST : (irrigationData?.forecast || DEMO_FORECAST);
   return (
     <div>
       <PageHeader

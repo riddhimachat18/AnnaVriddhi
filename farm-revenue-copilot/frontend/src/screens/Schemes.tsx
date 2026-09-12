@@ -1,213 +1,796 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { C, radius, shadow } from "../tokens";
-import { Card, PageHeader, Badge, Btn, IconBadge } from "../components/ui";
+import { Card, PageHeader, Badge, Btn } from "../components/ui";
 import type { Screen } from "../tokens";
+import { useAuth } from "../contexts/AuthContext";
 
-const schemes = [
-  {
-    id: 1,
-    icon: "◊",
-    name: "PMFBY — Pradhan Mantri Fasal Bima Yojana",
-    category: "Crop Insurance",
-    value: "₹2,400",
-    valueSub: "est. insurance cover for this plot",
-    deadline: "Nov 30, 2024",
-    daysLeft: 16,
-    urgency: "soon" as const,
-    eligible: true,
-    desc: "Comprehensive crop insurance against natural calamities, pests, and diseases. Premium: ₹260 (2% of sum insured).",
-  },
-  {
-    id: 2,
-    icon: "∆",
-    name: "Soil Health Card Scheme — Nutrient Subsidy",
-    category: "Input Subsidy",
-    value: "₹1,800",
-    valueSub: "fertilizer subsidy for your soil profile",
-    deadline: "Mar 15, 2025",
-    daysLeft: 121,
-    urgency: "normal" as const,
-    eligible: true,
-    desc: "Subsidised fertilizer supply based on SHC soil test results. Your N deficiency makes you priority eligible.",
-  },
-  {
-    id: 3,
-    icon: "₹",
-    name: "PM-KISAN — Direct Income Support",
-    category: "Income Support",
-    value: "₹2,000",
-    valueSub: "per installment (2 remaining this year)",
-    deadline: "Dec 31, 2024",
-    daysLeft: 47,
-    urgency: "normal" as const,
-    eligible: true,
-    desc: "₹6,000/year direct benefit transfer in 3 equal installments of ₹2,000.",
-  },
-  {
-    id: 4,
-    icon: "◐",
-    name: "KCC — Kisan Credit Card (Interest Subvention)",
-    category: "Credit",
-    value: "4% interest",
-    valueSub: "vs. 9–14% market rate for short-term credit",
-    deadline: "Ongoing",
-    daysLeft: 999,
-    urgency: "low" as const,
-    eligible: false,
-    desc: "Flexible working capital for farm inputs at subsidised interest. Requires KCC card — apply at your nearest cooperative bank.",
-  },
+// ══════════════════════════════════════════════════════════════
+// TYPES
+// ══════════════════════════════════════════════════════════════
+
+interface SchemeResponse {
+  id: string;
+  name: string;
+  shortName: string;
+  description: string;
+  level: 'CENTRAL' | 'STATE';
+  category: string;
+  status: 'POTENTIALLY_ELIGIBLE' | 'MATCHED' | 'INSUFFICIENT_INFORMATION' | 'NOT_MATCHED';
+  relevanceScore: number;
+  matchedBecause: string[];
+  missingInformation: string[];
+  benefit: {
+    type: string;
+    description: string;
+    percentage: number | null;
+    amount: number | null;
+    maximumAmount: number | null;
+    frequency: string | null;
+  };
+  window: {
+    status: 'OPEN' | 'CLOSING_SOON' | 'YEAR_ROUND' | 'UPCOMING' | 'CLOSED';
+    daysRemaining: number | null;
+    daysUntilStart: number | null;
+  };
+  documents: string[];
+  application: {
+    method: string | null;
+    url: string | null;
+  };
+  revenueImpact: {
+    available: boolean;
+    type?: string;
+    amount?: number;
+    basis?: string;
+  };
+  source: {
+    authority: string | null;
+    url: string | null;
+    lastVerifiedAt: string | null;
+    verificationStatus: string;
+  };
+}
+
+interface MatchResponse {
+  success: boolean;
+  farmerContext: {
+    state: string;
+    district?: string;
+    crop?: string;
+    landSize?: number;
+    season?: string;
+    activity?: string;
+  };
+  summary: {
+    totalMatches: number;
+    highRelevance: number;
+    closingSoon: number;
+    potentiallyEligible: number;
+  };
+  schemes: SchemeResponse[];
+}
+
+// ══════════════════════════════════════════════════════════════
+// CONSTANTS
+// ══════════════════════════════════════════════════════════════
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api';
+
+const STATES = [
+  'All India',
+  'Andhra Pradesh',
+  'Bihar',
+  'Gujarat',
+  'Haryana',
+  'Karnataka',
+  'Madhya Pradesh',
+  'Maharashtra',
+  'Odisha',
+  'Punjab',
+  'Rajasthan',
+  'Tamil Nadu',
+  'Telangana',
+  'Uttar Pradesh',
+  'West Bengal',
 ];
 
-const urgencyColors = {
-  soon: { color: C.rust, bg: C.rustTint, label: "Deadline soon" },
-  normal: { color: C.amber, bg: C.amberTint, label: "Apply soon" },
-  low: { color: C.inkMuted, bg: C.bg, label: "Ongoing" },
-};
+const CATEGORIES = [
+  { value: '', label: 'All Categories' },
+  { value: 'INCOME_SUPPORT', label: 'Income Support & Credit' },
+  { value: 'CROP_INSURANCE', label: 'Crop Insurance & Risk Protection' },
+  { value: 'AGRICULTURAL_CREDIT', label: 'Agricultural Credit' },
+  { value: 'IRRIGATION', label: 'Irrigation & Water' },
+  { value: 'SOIL_HEALTH', label: 'Soil Health & Farming Practices' },
+  { value: 'MARKET_ACCESS', label: 'Market Access & Selling' },
+  { value: 'INFRASTRUCTURE', label: 'Infrastructure & Storage' },
+  { value: 'MECHANIZATION', label: 'Technology & Mechanisation' },
+  { value: 'CROP_MISSION', label: 'Specialised Crop Missions' },
+];
 
-export default function Schemes({ navigate }: { navigate: (s: Screen) => void }) {
-  const [selected, setSelected] = useState<number | null>(null);
+const QUICK_SEARCHES = [
+  { query: 'crop insurance', activity: 'INSURE_CROP' },
+  { query: 'drip irrigation', activity: 'PLAN_IRRIGATION' },
+  { query: 'kisan credit card', activity: 'SEEK_CREDIT' },
+  { query: 'PM-KISAN', activity: null },
+  { query: 'soil health', activity: null },
+  { query: 'organic farming', activity: null },
+  { query: 'solar pump', activity: 'BUY_EQUIPMENT' },
+  { query: 'cold storage', activity: 'PLAN_TO_SELL' },
+  { query: 'seed subsidy', activity: 'BUY_SEED' },
+];
 
-  if (selected !== null) {
-    const scheme = schemes.find((s) => s.id === selected)!;
-    const uc = urgencyColors[scheme.urgency];
-    return (
-      <div style={{ maxWidth: 720, margin: "0 auto" }}>
-        <PageHeader
-          title={scheme.name}
-          subtitle={scheme.category}
-          back="Schemes"
-          onBack={() => setSelected(null)}
-          actions={<Badge color={uc.color} bg={uc.bg}>{scheme.daysLeft < 999 ? `${scheme.daysLeft} days left` : "Ongoing"}</Badge>}
-        />
+// ══════════════════════════════════════════════════════════════
+// UTILITY FUNCTIONS
+// ══════════════════════════════════════════════════════════════
 
-        {/* Value hero */}
-        <Card
-          hover={false}
+function getCategoryDisplay(category: string): string {
+  const found = CATEGORIES.find(c => c.value === category);
+  return found ? found.label : category;
+}
+
+function getWindowColor(status: string) {
+  switch (status) {
+    case 'CLOSING_SOON':
+      return { color: C.rust, bg: C.rustTint };
+    case 'OPEN':
+      return { color: C.sage, bg: C.sageTint };
+    case 'YEAR_ROUND':
+      return { color: C.blue, bg: C.blueTint };
+    case 'UPCOMING':
+      return { color: C.amber, bg: C.amberTint };
+    default:
+      return { color: C.inkMuted, bg: C.line };
+  }
+}
+
+function getStatusColor(status: string) {
+  switch (status) {
+    case 'POTENTIALLY_ELIGIBLE':
+      return { color: C.sage, bg: C.sageTint, label: 'Potentially Eligible' };
+    case 'MATCHED':
+      return { color: C.blue, bg: C.blueTint, label: 'Matched' };
+    case 'INSUFFICIENT_INFORMATION':
+      return { color: C.amber, bg: C.amberTint, label: 'More Info Needed' };
+    default:
+      return { color: C.inkMuted, bg: C.line, label: status };
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// COMPONENTS
+// ══════════════════════════════════════════════════════════════
+
+function ScoreBar({ score }: { score: number }) {
+  const color = score >= 70 ? C.sage : score >= 50 ? C.amber : C.rust;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ flex: 1, height: 6, background: C.line, borderRadius: 3, overflow: 'hidden' }}>
+        <div
           style={{
-            background: `linear-gradient(135deg, ${C.sageTint}, #d4e8d6)`,
-            border: `1px solid ${C.sage}33`,
-            padding: "28px 32px",
-            marginBottom: 16,
-            display: "flex",
-            gap: 20,
-            alignItems: "center",
+            height: '100%',
+            width: `${score}%`,
+            background: color,
+            borderRadius: 3,
+            transition: 'width 0.5s ease',
+          }}
+        />
+      </div>
+      <span style={{ fontSize: 11, fontWeight: 700, color, minWidth: 40 }}>{score}%</span>
+    </div>
+  );
+}
+
+interface SchemeCardProps {
+  scheme: SchemeResponse;
+  rank: number;
+  onExpand: () => void;
+  expanded: boolean;
+}
+
+function SchemeCard({ scheme, rank, onExpand, expanded }: SchemeCardProps) {
+  const windowStyle = getWindowColor(scheme.window.status);
+  const statusStyle = getStatusColor(scheme.status);
+  const levelColor = scheme.level === 'CENTRAL' ? C.blue : C.amber;
+  const levelBg = scheme.level === 'CENTRAL' ? C.blueTint : C.amberTint;
+
+  return (
+    <Card
+      style={{
+        padding: 0,
+        overflow: 'hidden',
+        borderLeft: `4px solid ${scheme.relevanceScore >= 70 ? C.sage : C.amber}`,
+      }}
+      hover={true}
+    >
+      {/* Header */}
+      <div
+        style={{
+          padding: '16px 20px',
+          borderBottom: `1px solid ${C.line}`,
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 12,
+          cursor: 'pointer',
+        }}
+        onClick={onExpand}
+      >
+        <div
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 10,
+            background: `linear-gradient(135deg, ${C.sageTint}, ${C.sage}22)`,
+            border: `1px solid ${C.sage}44`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontFamily: 'var(--font-display)',
+            fontSize: 14,
+            fontWeight: 800,
+            color: C.sageDeep,
+            flexShrink: 0,
           }}
         >
-          <span style={{ fontSize: 52 }}>{scheme.icon}</span>
+          {rank}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: C.ink, lineHeight: 1.4, marginBottom: 6 }}>
+            {scheme.name}
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+            <Badge color={levelColor} bg={levelBg} size="sm">
+              {scheme.level}
+            </Badge>
+            <Badge color={statusStyle.color} bg={statusStyle.bg} size="sm">
+              {statusStyle.label}
+            </Badge>
+            <Badge color={C.inkMuted} bg={C.bg} size="sm">
+              {getCategoryDisplay(scheme.category)}
+            </Badge>
+          </div>
+        </div>
+        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+          <div style={{ fontSize: 10, color: C.inkMuted, marginBottom: 4 }}>Relevance</div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: C.sageDeep, fontFamily: 'var(--font-display)' }}>
+            {scheme.relevanceScore}%
+          </div>
+          <div
+            style={{
+              fontSize: 11,
+              color: expanded ? C.sage : C.inkMuted,
+              marginTop: 8,
+              fontWeight: 600,
+            }}
+          >
+            {expanded ? '▲ Collapse' : '▼ View details'}
+          </div>
+        </div>
+      </div>
+
+      {/* Key Info */}
+      <div
+        style={{
+          padding: '12px 20px',
+          display: 'grid',
+          gridTemplateColumns: expanded ? '1fr' : '2fr 1fr',
+          gap: 12,
+          background: C.bg,
+        }}
+      >
+        <div>
+          <div style={{ fontSize: 10, color: C.inkMuted, fontWeight: 600, marginBottom: 4 }}>
+            BENEFIT
+          </div>
+          <div style={{ fontSize: 13, color: C.ink, fontWeight: 600, lineHeight: 1.5 }}>
+            {scheme.benefit.description}
+          </div>
+          {scheme.benefit.amount && (
+            <div
+              style={{
+                fontSize: 18,
+                fontWeight: 800,
+                color: C.sageDeep,
+                fontFamily: 'var(--font-display)',
+                marginTop: 4,
+              }}
+            >
+              ₹{scheme.benefit.amount.toLocaleString('en-IN')}
+            </div>
+          )}
+        </div>
+        {!expanded && (
           <div>
-            <div style={{ fontSize: 12, color: C.inkMuted, fontWeight: 600, marginBottom: 4 }}>Benefit for your farm</div>
-            <div style={{ fontFamily: "var(--font-display)", fontSize: 40, fontWeight: 800, color: C.sageDeep, letterSpacing: "-0.03em" }}>{scheme.value}</div>
-            <div style={{ fontSize: 13, color: C.inkMuted, marginTop: 2 }}>{scheme.valueSub}</div>
+            <div style={{ fontSize: 10, color: C.inkMuted, fontWeight: 600, marginBottom: 4 }}>
+              WINDOW
+            </div>
+            <Badge color={windowStyle.color} bg={windowStyle.bg}>
+              {scheme.window.status === 'CLOSING_SOON' && scheme.window.daysRemaining
+                ? `${scheme.window.daysRemaining} days left`
+                : scheme.window.status.replace('_', ' ')}
+            </Badge>
           </div>
-        </Card>
+        )}
+      </div>
 
-        {/* Eligibility */}
-        <Card hover={false} style={{ padding: "24px", marginBottom: 16, borderLeft: `4px solid ${scheme.eligible ? C.sage : C.amber}` }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: C.ink, marginBottom: 8 }}>
-            {scheme.eligible ? "✓ You are eligible" : "! Eligibility pending"}
+      {/* Expanded Details */}
+      {expanded && (
+        <div style={{ padding: '16px 20px', borderTop: `1px solid ${C.line}`, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Match Score */}
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.ink, marginBottom: 8 }}>
+              Match Score
+            </div>
+            <ScoreBar score={scheme.relevanceScore} />
           </div>
-          <p style={{ fontSize: 13, color: C.inkMuted, lineHeight: 1.65, margin: 0 }}>
-            {scheme.eligible
-              ? `Based on your farm profile (2.5 acres, Karnal district, Kharif wheat), you meet all eligibility criteria for ${scheme.name}.`
-              : "You may be eligible but need to complete KCC card application first. Visit your nearest cooperative bank."}
-          </p>
-        </Card>
 
-        {/* Documents checklist */}
-        <Card hover={false} style={{ padding: "24px", marginBottom: 16 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: C.ink, marginBottom: 14 }}>Required documents</div>
-          {[
-            { done: true, doc: "Aadhaar card", note: "Linked to farm account" },
-            { done: true, doc: "Land records / Khasra number", note: "Plot A registered" },
-            { done: true, doc: "Bank account (PM-KISAN linked)", note: "Account verified" },
-            { done: false, doc: "Crop sowing certificate", note: "From village patwari — obtain before deadline" },
-            { done: false, doc: "Soil Health Card copy", note: "SHC issued 2022 — may need renewal" },
-          ].map(({ done, doc, note }) => (
-            <div key={doc} style={{ display: "flex", gap: 12, padding: "10px 0", borderBottom: `1px solid ${C.line}`, alignItems: "flex-start" }}>
-              <div style={{ width: 22, height: 22, borderRadius: 6, background: done ? C.sage : "transparent", border: done ? "none" : `2px solid ${C.line}`, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, flexShrink: 0, marginTop: 1 }}>
-                {done ? "✓" : ""}
+          {/* Why Matched */}
+          {scheme.matchedBecause.length > 0 && (
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.ink, marginBottom: 8 }}>
+                Why This Scheme Matched
               </div>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: done ? C.inkMuted : C.ink, textDecoration: done ? "line-through" : "none" }}>{doc}</div>
-                <div style={{ fontSize: 11, color: C.inkMuted, marginTop: 1 }}>{note}</div>
+              <ul style={{ margin: 0, paddingLeft: 20, fontSize: 12, color: C.inkMuted, lineHeight: 1.8 }}>
+                {scheme.matchedBecause.map((reason, i) => (
+                  <li key={i}>{reason}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Missing Information */}
+          {scheme.missingInformation.length > 0 && (
+            <div
+              style={{
+                background: C.amberTint,
+                border: `1px solid ${C.amber}33`,
+                borderRadius: radius.md,
+                padding: '12px 14px',
+              }}
+            >
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.amber, marginBottom: 6 }}>
+                Missing Information
+              </div>
+              <div style={{ fontSize: 12, color: C.ink }}>
+                Please provide: {scheme.missingInformation.join(', ')}
               </div>
             </div>
-          ))}
-        </Card>
+          )}
 
-        <Btn variant="primary" size="lg" fullWidth>⊗ How to apply → PM portal</Btn>
-      </div>
-    );
-  }
+          {/* Description */}
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.ink, marginBottom: 8 }}>
+              Description
+            </div>
+            <div style={{ fontSize: 12, color: C.inkMuted, lineHeight: 1.7 }}>
+              {scheme.description}
+            </div>
+          </div>
+
+          {/* Documents */}
+          {scheme.documents.length > 0 && (
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.ink, marginBottom: 8 }}>
+                Required Documents
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {scheme.documents.map((doc, i) => (
+                  <Badge key={i} color={C.inkMuted} bg={C.bg} size="sm">
+                    {doc}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Revenue Impact */}
+          {scheme.revenueImpact.available && (
+            <div
+              style={{
+                background: C.sageTint,
+                border: `1px solid ${C.sage}33`,
+                borderRadius: radius.md,
+                padding: '12px 14px',
+              }}
+            >
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.sageDeep, marginBottom: 6 }}>
+                Potential Revenue Impact
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.sageDeep, marginBottom: 2 }}>
+                ₹{scheme.revenueImpact.amount?.toLocaleString('en-IN')}
+              </div>
+              <div style={{ fontSize: 11, color: C.ink }}>{scheme.revenueImpact.basis}</div>
+            </div>
+          )}
+
+          {/* Application */}
+          {scheme.application.url && (
+            <div>
+              <Btn
+                variant="primary"
+                size="md"
+                fullWidth
+                onClick={() => window.open(scheme.application.url!, '_blank')}
+              >
+                Apply Online →
+              </Btn>
+              <div style={{ fontSize: 10, color: C.inkMuted, marginTop: 8, textAlign: 'center' }}>
+                {scheme.application.method}
+              </div>
+            </div>
+          )}
+
+          {/* Source */}
+          <div style={{ fontSize: 10, color: C.inkMuted, paddingTop: 12, borderTop: `1px solid ${C.line}` }}>
+            <strong>Source:</strong> {scheme.source.authority} •{' '}
+            <strong>Verified:</strong> {scheme.source.lastVerifiedAt ? new Date(scheme.source.lastVerifiedAt).toLocaleDateString() : 'N/A'}
+            {scheme.source.url && (
+              <>
+                {' • '}
+                <a
+                  href={scheme.source.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: C.sage, textDecoration: 'none' }}
+                >
+                  Official Source →
+                </a>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
+// MAIN COMPONENT
+// ══════════════════════════════════════════════════════════════
+
+export default function Schemes({ navigate }: { navigate: (s: Screen) => void }) {
+  const { farmer } = useAuth();
+  
+  const [schemes, setSchemes] = useState<SchemeResponse[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [searched, setSearched] = useState(false);
+  
+  const [selectedState, setSelectedState] = useState('All India');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [expandedScheme, setExpandedScheme] = useState<string | null>(null);
+
+  // Auto-load schemes on mount if farmer profile is available
+  useEffect(() => {
+    if (farmer && farmer.state) {
+      loadSchemes();
+    }
+  }, [farmer]);
+
+  const loadSchemes = async (activity?: string | null) => {
+    if (!farmer) {
+      setError('Please complete your farm profile to see matched schemes');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setSearched(true);
+
+    try {
+      const params = new URLSearchParams();
+      
+      if (farmer.state) params.append('state', farmer.state);
+      if (farmer.district) params.append('district', farmer.district);
+      // Note: Add crop, landSize, season etc when available in farmer profile
+      if (activity) params.append('activity', activity);
+      if (selectedCategory) params.append('activity', selectedCategory);
+
+      const response = await fetch(`${API_BASE_URL}/schemes/match?${params.toString()}`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch schemes: ${response.statusText}`);
+      }
+
+      const data: MatchResponse = await response.json();
+      setSchemes(data.schemes || []);
+    } catch (err) {
+      console.error('Error loading schemes:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load schemes');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleQuickSearch = (activity: string | null) => {
+    loadSchemes(activity);
+  };
+
+  const handleSearch = () => {
+    loadSchemes();
+  };
 
   return (
     <div>
       <PageHeader
         title="Government Schemes"
-        subtitle="Matched to your farm profile — Karnal, 2.5 ac, Wheat"
+        subtitle={
+          farmer
+            ? `Find schemes for ${farmer.state || 'your farm'}`
+            : 'Complete your profile to see matched schemes'
+        }
         back="Dashboard"
-        onBack={() => navigate("dashboard")}
+        onBack={() => navigate('dashboard')}
         actions={
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <Badge color={C.rust} bg={C.rustTint}>1 deadline soon</Badge>
-            <Badge color={C.sage} bg={C.sageTint}>3 eligible</Badge>
-          </div>
+          schemes.length > 0 && (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Badge color={C.sage} bg={C.sageTint}>
+                {schemes.filter(s => s.status === 'POTENTIALLY_ELIGIBLE').length} eligible
+              </Badge>
+              <Badge color={C.rust} bg={C.rustTint}>
+                {schemes.filter(s => s.window.status === 'CLOSING_SOON').length} closing soon
+              </Badge>
+            </div>
+          )
         }
       />
 
-      {/* Total value banner */}
+      {/* Header Card */}
       <div
         style={{
-          background: `linear-gradient(135deg, ${C.sageDeep}, #2a3d2c)`,
+          background: `linear-gradient(135deg, ${C.sageTint}, #d4e8d6)`,
+          border: `1px solid ${C.sage}33`,
           borderRadius: radius.xl,
-          padding: "20px 28px",
+          padding: '20px 24px',
           marginBottom: 20,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
+          display: 'flex',
+          alignItems: 'center',
+          gap: 16,
         }}
       >
-        <div>
-          <div style={{ fontSize: 11, color: `${C.sageTint}88`, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>Total available benefits</div>
-          <div style={{ fontFamily: "var(--font-display)", fontSize: 36, fontWeight: 800, color: "#fff", letterSpacing: "-0.03em" }}>₹8,400</div>
-          <div style={{ fontSize: 12, color: `${C.sageTint}88`, marginTop: 4 }}>across 3 eligible schemes this season</div>
+        <div style={{ flex: 1 }}>
+          <div
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 18,
+              fontWeight: 700,
+              color: C.sageDeep,
+              marginBottom: 4,
+            }}
+          >
+            Government Scheme Finder
+          </div>
+          <div style={{ fontSize: 12, color: C.inkMuted }}>
+            Search 50+ central & state schemes — crop insurance, subsidies, loans, irrigation & more
+          </div>
         </div>
-        <div style={{ fontSize: 48, opacity: 0.7 }}>▦</div>
+        <Badge color={C.sageDeep} bg={`${C.sage}22`}>
+          Verified Schemes
+        </Badge>
       </div>
 
-      {/* Scheme cards */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        {schemes.map((scheme) => {
-          const uc = urgencyColors[scheme.urgency];
-          return (
-            <Card
-              key={scheme.id}
-              style={{ padding: "20px 24px", display: "flex", gap: 16, alignItems: "flex-start", opacity: scheme.eligible ? 1 : 0.7 }}
-              onClick={() => setSelected(scheme.id)}
+      {/* Search/Filter Card */}
+      <Card hover={false} style={{ padding: '20px 24px', marginBottom: 20 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: C.ink, marginBottom: 16 }}>
+          Search Schemes
+        </div>
+
+        {/* State + Category */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+          <div>
+            <label
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: C.inkMuted,
+                display: 'block',
+                marginBottom: 6,
+              }}
             >
-              <span style={{ fontSize: 36, flexShrink: 0 }}>{scheme.icon}</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", gap: 8, marginBottom: 4, flexWrap: "wrap", alignItems: "center" }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: C.ink }}>{scheme.name}</div>
-                  {!scheme.eligible && <Badge color={C.amber} size="sm">Check eligibility</Badge>}
-                </div>
-                <div style={{ fontSize: 12, color: C.inkMuted, marginBottom: 8 }}>{scheme.desc}</div>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <Badge color={C.sage} bg={C.sageTint} size="sm">{scheme.category}</Badge>
-                  <Badge color={uc.color} bg={uc.bg} size="sm">
-                    {scheme.daysLeft < 999 ? `⌚ ${scheme.daysLeft} days left` : "Ongoing"}
-                  </Badge>
-                </div>
-              </div>
-              <div style={{ textAlign: "right", flexShrink: 0 }}>
-                <div style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 800, color: C.sageDeep, letterSpacing: "-0.02em" }}>{scheme.value}</div>
-                <div style={{ fontSize: 10, color: C.inkMuted, marginTop: 2, maxWidth: 120, lineHeight: 1.4 }}>{scheme.valueSub}</div>
-                <div style={{ marginTop: 8, fontSize: 13, color: C.sage, fontWeight: 600 }}>View details →</div>
-              </div>
-            </Card>
-          );
-        })}
-      </div>
+              State
+            </label>
+            <select
+              value={selectedState}
+              onChange={(e) => setSelectedState(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                border: `1px solid ${C.line}`,
+                borderRadius: radius.md,
+                fontSize: 13,
+                color: C.ink,
+                background: C.surface,
+                outline: 'none',
+              }}
+            >
+              {STATES.map((state) => (
+                <option key={state} value={state}>
+                  {state}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: C.inkMuted,
+                display: 'block',
+                marginBottom: 6,
+              }}
+            >
+              Category
+            </label>
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                border: `1px solid ${C.line}`,
+                borderRadius: radius.md,
+                fontSize: 13,
+                color: C.ink,
+                background: C.surface,
+                outline: 'none',
+              }}
+            >
+              {CATEGORIES.map((cat) => (
+                <option key={cat.value} value={cat.value}>
+                  {cat.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Quick Searches */}
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 10, color: C.inkMuted, fontWeight: 600, marginBottom: 8 }}>
+            QUICK SEARCHES
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {QUICK_SEARCHES.map((qs) => (
+              <button
+                key={qs.query}
+                onClick={() => handleQuickSearch(qs.activity)}
+                style={{
+                  fontSize: 11,
+                  padding: '6px 12px',
+                  borderRadius: 20,
+                  background: C.sageTint,
+                  border: `1px solid ${C.sage}33`,
+                  color: C.sageDeep,
+                  cursor: 'pointer',
+                  fontWeight: 500,
+                  transition: 'all 0.15s',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = C.sage;
+                  e.currentTarget.style.color = '#fff';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = C.sageTint;
+                  e.currentTarget.style.color = C.sageDeep;
+                }}
+              >
+                {qs.query}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Search Button */}
+        <Btn
+          variant="primary"
+          size="md"
+          fullWidth
+          onClick={handleSearch}
+          disabled={loading || !farmer}
+        >
+          {loading ? 'Searching...' : 'Search Schemes'}
+        </Btn>
+
+        {!farmer && (
+          <div
+            style={{
+              marginTop: 12,
+              fontSize: 12,
+              color: C.amber,
+              textAlign: 'center',
+            }}
+          >
+            Complete your farm profile in Settings to see matched schemes
+          </div>
+        )}
+      </Card>
+
+      {/* Error */}
+      {error && (
+        <div
+          style={{
+            background: C.rustTint,
+            border: `1px solid ${C.rust}33`,
+            borderRadius: radius.md,
+            padding: '14px 16px',
+            fontSize: 12,
+            color: C.rust,
+            marginBottom: 20,
+          }}
+        >
+          {error}
+        </div>
+      )}
+
+      {/* Loading */}
+      {loading && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 12,
+            padding: 48,
+            color: C.sage,
+            fontSize: 14,
+          }}
+        >
+          <div
+            style={{
+              width: 20,
+              height: 20,
+              border: `3px solid ${C.sageTint}`,
+              borderTop: `3px solid ${C.sage}`,
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite',
+            }}
+          />
+          Searching government schemes...
+        </div>
+      )}
+
+      {/* No Results */}
+      {!loading && searched && schemes.length === 0 && !error && (
+        <div
+          style={{
+            textAlign: 'center',
+            padding: 48,
+            color: C.inkMuted,
+            fontSize: 14,
+          }}
+        >
+          No schemes found matching your criteria. Try adjusting your filters or complete your farm
+          profile.
+        </div>
+      )}
+
+      {/* Results */}
+      {!loading && schemes.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ fontSize: 12, color: C.inkMuted, fontWeight: 600 }}>
+            {schemes.length} schemes found • sorted by relevance
+          </div>
+          {schemes.map((scheme, i) => (
+            <SchemeCard
+              key={scheme.id}
+              scheme={scheme}
+              rank={i + 1}
+              expanded={expandedScheme === scheme.id}
+              onExpand={() => setExpandedScheme(expandedScheme === scheme.id ? null : scheme.id)}
+            />
+          ))}
+        </div>
+      )}
+
+      <style>
+        {`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}
+      </style>
     </div>
   );
 }

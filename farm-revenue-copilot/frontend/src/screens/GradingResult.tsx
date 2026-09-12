@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { C, radius, shadow } from "../tokens";
 import { Card, PageHeader, Badge, Btn, IconBadge } from "../components/ui";
 import type { Screen } from "../tokens";
@@ -31,12 +32,87 @@ function GradeBadge({ grade, size = 140 }: { grade: "A" | "B" | "C"; size?: numb
   );
 }
 
+interface GradingResultData {
+  crop: string;
+  cropId: string;
+  grade: "A" | "B" | "C";
+  quality_score: number;
+  subscores?: {
+    color_ripeness?: number;
+    surface_defect?: number;
+    shape?: number;
+  };
+  gradedAt: string;
+}
+
 export default function GradingResult({ navigate }: { navigate: (s: Screen) => void }) {
+  const [result, setResult] = useState<GradingResultData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Load result from sessionStorage (set by GradeCapture)
+    const storedResult = sessionStorage.getItem('latest_grading_result');
+    if (storedResult) {
+      try {
+        const parsed = JSON.parse(storedResult);
+        setResult(parsed);
+      } catch (err) {
+        console.error('Error parsing grading result:', err);
+      }
+    }
+    setLoading(false);
+  }, []);
+
+  if (loading) {
+    return (
+      <div>
+        <PageHeader
+          title="Grading Result"
+          subtitle="Loading result..."
+          back="Grade Produce"
+          onBack={() => navigate("grade-capture")}
+        />
+        <div style={{ textAlign: "center", padding: 60 }}>
+          <div style={{ fontSize: 14, color: C.inkMuted }}>Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!result) {
+    return (
+      <div>
+        <PageHeader
+          title="Grading Result"
+          subtitle="No result available"
+          back="Grade Produce"
+          onBack={() => navigate("grade-capture")}
+        />
+        <div style={{ textAlign: "center", padding: 60 }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>⊙</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: C.ink, marginBottom: 8 }}>
+            No Grading Result
+          </div>
+          <div style={{ fontSize: 14, color: C.inkMuted, marginBottom: 24 }}>
+            Grade a batch first to see results here
+          </div>
+          <Btn variant="primary" onClick={() => navigate("grade-capture")}>
+            Grade Produce →
+          </Btn>
+        </div>
+      </div>
+    );
+  }
+
+  const grade = result.grade || "B";
+  const qualityScore = result.quality_score || 0;
+  const subscores = result.subscores || {};
+
   return (
     <div>
       <PageHeader
         title="Grading Result"
-        subtitle="Batch #14 · Wheat · 14 Nov 2024"
+        subtitle={`${result.crop} · ${new Date(result.gradedAt).toLocaleDateString()}`}
         back="Grade Produce"
         onBack={() => navigate("grade-capture")}
         actions={
@@ -62,9 +138,9 @@ export default function GradingResult({ navigate }: { navigate: (s: Screen) => v
             gap: 20,
           }}
         >
-          <GradeBadge grade="A" size={160} />
+          <GradeBadge grade={grade} size={160} />
           <div style={{ textAlign: "center" }}>
-            <div style={{ fontFamily: "var(--font-display)", fontSize: 32, fontWeight: 800, color: C.sageDeep, letterSpacing: "-0.03em" }}>92 / 100</div>
+            <div style={{ fontFamily: "var(--font-display)", fontSize: 32, fontWeight: 800, color: C.sageDeep, letterSpacing: "-0.03em" }}>{qualityScore} / 100</div>
             <div style={{ fontSize: 13, color: C.inkMuted, marginTop: 4 }}>Quality score</div>
           </div>
         </Card>
@@ -73,10 +149,9 @@ export default function GradingResult({ navigate }: { navigate: (s: Screen) => v
           <div style={{ fontSize: 13, fontWeight: 700, color: C.ink, marginBottom: 20 }}>Quality signal breakdown</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             {[
-              { icon: "▭", label: "Grain size uniformity", score: 94, color: C.sage, detail: "Very consistent sizing — <5% variance" },
-              { icon: "🎨", label: "Colour & ripeness", score: 91, color: C.sage, detail: "Golden yellow — optimal ripeness index" },
-              { icon: "🔍", label: "Surface quality", score: 88, color: C.sage, detail: "Minimal blemishes — 2.3% defect area" },
-              { icon: "≈", label: "Moisture est.", score: 96, color: C.sage, detail: "13.8% — within FAO spec of ≤14%" },
+              { icon: "🎨", label: "Colour & ripeness", score: subscores.color_ripeness || 0, color: C.sage, detail: "Based on RGB analysis" },
+              { icon: "🔍", label: "Surface quality", score: subscores.surface_defect || 0, color: C.sage, detail: "Defect detection" },
+              { icon: "▭", label: "Shape uniformity", score: subscores.shape || 0, color: C.sage, detail: "Geometric analysis" },
             ].map(({ icon, label, score, color, detail }) => (
               <div key={label}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
@@ -98,45 +173,18 @@ export default function GradingResult({ navigate }: { navigate: (s: Screen) => v
         </Card>
       </div>
 
-      {/* Price impact & market */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 20 }}>
-        <Card style={{ textAlign: "center", padding: "24px" }}>
-          <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: C.inkMuted, fontWeight: 700, marginBottom: 8 }}>Market price — Grade A</div>
-          <div style={{ fontFamily: "var(--font-display)", fontSize: 36, fontWeight: 800, color: C.sageDeep, letterSpacing: "-0.03em" }}>₹2,240</div>
-          <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 4 }}>per quintal · Karnal Mandi today</div>
-          <Badge color={C.sage} bg={C.sageTint} size="sm">↑ ₹80 from last week</Badge>
-        </Card>
-        <Card style={{ textAlign: "center", padding: "24px" }}>
-          <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: C.inkMuted, fontWeight: 700, marginBottom: 8 }}>Vs. Grade B price</div>
-          <div style={{ fontFamily: "var(--font-display)", fontSize: 36, fontWeight: 800, color: C.sage, letterSpacing: "-0.03em" }}>+₹420</div>
-          <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 4 }}>extra per quintal for Grade A</div>
-          <Badge color={C.sage} bg={C.sageTint} size="sm">For your ~12 qtl batch</Badge>
-        </Card>
-        <Card style={{ textAlign: "center", padding: "24px" }}>
-          <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: C.inkMuted, fontWeight: 700, marginBottom: 8 }}>Batch revenue est.</div>
-          <div style={{ fontFamily: "var(--font-display)", fontSize: 36, fontWeight: 800, color: C.sageDeep, letterSpacing: "-0.03em" }}>₹26,880</div>
-          <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 4 }}>for 12 quintals at Grade A rate</div>
-          <Badge color={C.amber} bg={C.amberTint} size="sm">Sell within 3 days for best price</Badge>
-        </Card>
+      {/* Action buttons */}
+      <div style={{ display: "flex", gap: 12 }}>
+        <Btn variant="primary" onClick={() => navigate("grade-capture")}>
+          Grade Another Batch
+        </Btn>
+        <Btn variant="secondary" onClick={() => navigate("grading-history")}>
+          View History
+        </Btn>
+        <Btn variant="ghost" onClick={() => navigate("dashboard")}>
+          Back to Dashboard
+        </Btn>
       </div>
-
-      {/* Improvement tips */}
-      <Card hover={false} style={{ padding: "24px 28px" }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: C.ink, marginBottom: 16 }}>How to improve further next season</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-          {[
-            { icon: "⊕", title: "Address nitrogen gap", detail: "N at 58 kg/ha limited grain weight. +20% urea at tillering could push score to 96+." },
-            { icon: "≈", title: "Time irrigation better", detail: "Late-season irrigation 10 days before harvest reduces grain shrivelling by est. 4–6%." },
-            { icon: "◈", title: "Harvest timing", detail: "This batch was 1 day early — grain moisture still at 13.8%. Waiting 1 more day could +1–2 pts." },
-          ].map(({ icon, title, detail }) => (
-            <div key={title} style={{ background: C.bg, borderRadius: radius.md, padding: "16px" }}>
-              <div style={{ fontSize: 24, marginBottom: 8 }}>{icon}</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: C.ink, marginBottom: 4 }}>{title}</div>
-              <div style={{ fontSize: 12, color: C.inkMuted, lineHeight: 1.55 }}>{detail}</div>
-            </div>
-          ))}
-        </div>
-      </Card>
     </div>
   );
 }

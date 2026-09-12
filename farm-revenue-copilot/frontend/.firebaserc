@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "annavriddhi-a5d62"
+  },
+  "targets": {
+    "annavriddhi-a5d62": {
+      "hosting": {
+        "annavriddhi": [
+          "annavriddhi"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

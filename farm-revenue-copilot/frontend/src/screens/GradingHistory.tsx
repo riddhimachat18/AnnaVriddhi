@@ -1,8 +1,13 @@
+import { useState, useEffect } from "react";
 import { C, radius, shadow } from "../tokens";
 import { PageHeader, Badge } from "../components/ui";
 import type { Screen } from "../tokens";
+import { useAuth } from "../contexts/AuthContext";
+import { useData } from "../contexts/DataContext";
+import { supabase } from "../lib/supabase";
 
-const history = [
+// Demo data for demo@123 only
+const DEMO_HISTORY = [
   { id: 14, date: "14 Nov 2024", crop: "Wheat", variety: "HD-3226", grade: "A" as const, score: 92, price: 2240, qty: 12, img: "https://images.unsplash.com/photo-1630873711080-aa3097d1da66?w=120&h=80&fit=crop&auto=format" },
   { id: 13, date: "02 Nov 2024", crop: "Wheat", variety: "HD-3226", grade: "A" as const, score: 89, price: 2180, qty: 10, img: "https://images.unsplash.com/photo-1715289718087-66a61b7b4c0d?w=120&h=80&fit=crop&auto=format" },
   { id: 12, date: "18 Oct 2024", crop: "Wheat", variety: "HD-3226", grade: "B" as const, score: 74, price: 2020, qty: 8, img: "https://images.unsplash.com/photo-1626606439378-191600523bfd?w=120&h=80&fit=crop&auto=format" },
@@ -17,8 +22,179 @@ const gradeConfig = {
   C: { color: C.rust, bg: C.rustTint },
 };
 
+type GradeType = "A" | "B" | "C";
+
+interface GradingRecord {
+  id: string | number;
+  date: string;
+  crop: string;
+  variety: string;
+  grade: GradeType;
+  score: number;
+  price: number;
+  qty: number;
+  img: string;
+}
+
 export default function GradingHistory({ navigate }: { navigate: (s: Screen) => void }) {
-  const avgScore = Math.round(history.reduce((a, h) => a + h.score, 0) / history.length);
+  const { farmer } = useAuth();
+  const { crops } = useData();
+  const isDemoAccount = localStorage.getItem('is_demo_account') === 'true';
+  
+  const [history, setHistory] = useState<GradingRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadGradingHistory();
+  }, [farmer?.id, isDemoAccount]);
+
+  const loadGradingHistory = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      if (isDemoAccount) {
+        // Demo account uses hardcoded data
+        setHistory(DEMO_HISTORY);
+        setLoading(false);
+        return;
+      }
+
+      if (!farmer?.id) {
+        setHistory([]);
+        setLoading(false);
+        return;
+      }
+
+      // Load grading history for all user's crops
+      const { data: gradesData, error: gradesError } = await supabase
+        .from('produce_grades')
+        .select(`
+          *,
+          crop:crop_id (
+            id,
+            crop_name,
+            variety
+          )
+        `)
+        .in('crop_id', crops.map(c => c.id))
+        .order('graded_date', { ascending: false });
+
+      if (gradesError) throw gradesError;
+
+      // Transform to UI format
+      const transformedHistory: GradingRecord[] = (gradesData || []).map((record: any) => ({
+        id: record.id,
+        date: new Date(record.graded_date).toLocaleDateString('en-GB', { 
+          day: '2-digit', 
+          month: 'short', 
+          year: 'numeric' 
+        }),
+        crop: record.crop?.crop_name || 'Unknown',
+        variety: record.crop?.variety || '—',
+        grade: (record.grade || 'B') as GradeType,
+        score: record.quality_score || 0,
+        price: 0, // Would need market price data
+        qty: 0, // Would need quantity data
+        img: "https://images.unsplash.com/photo-1630873711080-aa3097d1da66?w=120&h=80&fit=crop&auto=format",
+      }));
+
+      setHistory(transformedHistory);
+    } catch (err) {
+      console.error('Error loading grading history:', err);
+      setError('Failed to load grading history');
+      setHistory([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div>
+        <PageHeader
+          title="Grading History"
+          subtitle="Loading your grading records..."
+          back="Grade Produce"
+          onBack={() => navigate("grade-capture")}
+        />
+        <div style={{ textAlign: "center", padding: 60 }}>
+          <div style={{ fontSize: 14, color: C.inkMuted }}>Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div>
+        <PageHeader
+          title="Grading History"
+          subtitle="Error loading data"
+          back="Grade Produce"
+          onBack={() => navigate("grade-capture")}
+        />
+        <div style={{ textAlign: "center", padding: 60 }}>
+          <div style={{ fontSize: 14, color: C.rust, marginBottom: 12 }}>{error}</div>
+          <button
+            onClick={loadGradingHistory}
+            style={{
+              padding: "8px 16px",
+              background: C.sage,
+              color: "#fff",
+              border: "none",
+              borderRadius: radius.md,
+              cursor: "pointer",
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (history.length === 0) {
+    return (
+      <div>
+        <PageHeader
+          title="Grading History"
+          subtitle="No grading records yet"
+          back="Grade Produce"
+          onBack={() => navigate("grade-capture")}
+        />
+        <div style={{ textAlign: "center", padding: 60 }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>⊙</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: C.ink, marginBottom: 8 }}>
+            No Grading History Yet
+          </div>
+          <div style={{ fontSize: 14, color: C.inkMuted, marginBottom: 24 }}>
+            Start grading your produce to build your quality track record
+          </div>
+          <button
+            onClick={() => navigate("grade-capture")}
+            style={{
+              padding: "10px 20px",
+              background: C.sage,
+              color: "#fff",
+              border: "none",
+              borderRadius: radius.md,
+              cursor: "pointer",
+              fontSize: 14,
+              fontWeight: 600,
+            }}
+          >
+            Grade Your First Batch →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const avgScore = history.length > 0 
+    ? Math.round(history.reduce((a, h) => a + h.score, 0) / history.length) 
+    : 0;
   const gradeACount = history.filter((h) => h.grade === "A").length;
 
   return (

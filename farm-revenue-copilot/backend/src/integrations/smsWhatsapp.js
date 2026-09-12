@@ -11,32 +11,32 @@ const db = require('../models/db');
 // Hindi templates for different recommendation types
 const TEMPLATES = {
   irrigation: {
-    en: 'Your {crop_type} crop needs irrigation. Apply {suggested_amount}mm. Estimated benefit: ₹{predicted_revenue_impact}. Reply YES to confirm.',
-    hi: 'आपकी {crop_type} फसल को सिंचाई की जरूरत है। {suggested_amount}mm पानी दें। अनुमानित लाभ: ₹{predicted_revenue_impact}। पुष्टि के लिए YES भेजें।',
+    en: 'Your {crop_type} crop needs irrigation. Apply {suggested_amount}mm. Estimated benefit: ₹{predicted_revenue_impact} ({revenue_impact_pct}% vs no action). Reply YES to confirm.',
+    hi: 'आपकी {crop_type} फसल को सिंचाई की जरूरत है। {suggested_amount}mm पानी दें। अनुमानित लाभ: ₹{predicted_revenue_impact} (बिना कार्रवाई से {revenue_impact_pct}% अधिक)। पुष्टि के लिए YES भेजें।',
   },
   fertilizer: {
-    en: 'Nutrient deficiency detected in your {crop_type}. Apply fertilizer now. Estimated benefit: ₹{predicted_revenue_impact}. Reply YES to confirm.',
-    hi: 'आपकी {crop_type} फसल में पोषक तत्वों की कमी है। अभी उर्वरक डालें। अनुमानित लाभ: ₹{predicted_revenue_impact}। पुष्टि के लिए YES भेजें।',
+    en: 'Nutrient deficiency detected in your {crop_type}. Apply fertilizer now. Estimated benefit: ₹{predicted_revenue_impact} ({revenue_impact_pct}% vs no action). Reply YES to confirm.',
+    hi: 'आपकी {crop_type} फसल में पोषक तत्वों की कमी है। अभी उर्वरक डालें। अनुमानित लाभ: ₹{predicted_revenue_impact} (बिना कार्रवाई से {revenue_impact_pct}% अधिक)। पुष्टि के लिए YES भेजें।',
   },
   pesticide: {
-    en: 'Pest pressure detected in your {crop_type}. Apply pesticide immediately. Estimated benefit: ₹{predicted_revenue_impact}. Reply YES to confirm.',
-    hi: 'आपकी {crop_type} फसल में कीट का दबाव है। तुरंत कीटनाशक डालें। अनुमानित लाभ: ₹{predicted_revenue_impact}। पुष्टि के लिए YES भेजें।',
+    en: 'Pest pressure detected in your {crop_type}. Apply pesticide immediately. Estimated benefit: ₹{predicted_revenue_impact} ({revenue_impact_pct}% vs no action). Reply YES to confirm.',
+    hi: 'आपकी {crop_type} फसल में कीट का दबाव है। तुरंत कीटनाशक डालें। अनुमानित लाभ: ₹{predicted_revenue_impact} (बिना कार्रवाई से {revenue_impact_pct}% अधिक)। पुष्टि के लिए YES भेजें।',
   },
   cover: {
-    en: 'URGENT: Storm warning for your {crop_type} crop. Protect with covers now. Estimated benefit: ₹{predicted_revenue_impact}. Reply YES to confirm.',
-    hi: 'जरूरी: आपकी {crop_type} फसल के लिए तूफान की चेतावनी। अभी कवर से सुरक्षा करें। अनुमानित लाभ: ₹{predicted_revenue_impact}। पुष्टि के लिए YES भेजें।',
+    en: 'URGENT: Storm warning for your {crop_type} crop. Protect with covers now. Estimated benefit: ₹{predicted_revenue_impact} ({revenue_impact_pct}% vs no action). Reply YES to confirm.',
+    hi: 'जरूरी: आपकी {crop_type} फसल के लिए तूफान की चेतावनी। अभी कवर से सुरक्षा करें। अनुमानित लाभ: ₹{predicted_revenue_impact} (बिना कार्रवाई से {revenue_impact_pct}% अधिक)। पुष्टि के लिए YES भेजें।',
   },
   harvest: {
-    en: 'Perfect time to harvest your {crop_type}! Weather and quality are optimal. Estimated benefit: ₹{predicted_revenue_impact}. Reply YES to confirm.',
-    hi: 'आपकी {crop_type} फसल की कटाई का सही समय है! मौसम और गुणवत्ता उत्तम है। अनुमानित लाभ: ₹{predicted_revenue_impact}। पुष्टि के लिए YES भेजें।',
+    en: 'Perfect time to harvest your {crop_type}! Weather and quality are optimal. Estimated benefit: ₹{predicted_revenue_impact} ({revenue_impact_pct}% vs delay). Reply YES to confirm.',
+    hi: 'आपकी {crop_type} फसल की कटाई का सही समय है! मौसम और गुणवत्ता उत्तम है। अनुमानित लाभ: ₹{predicted_revenue_impact} (देरी से {revenue_impact_pct}% अधिक)। पुष्टि के लिए YES भेजें।',
   },
   scheme: {
-    en: 'You are eligible for {scheme_name}. Benefit: ₹{predicted_revenue_impact}. Apply by {deadline}. Reply YES for details.',
-    hi: 'आप {scheme_name} के लिए पात्र हैं। लाभ: ₹{predicted_revenue_impact}। {deadline} तक आवेदन करें। विवरण के लिए YES भेजें।',
+    en: 'You are eligible for {scheme_name}. Benefit: ₹{predicted_revenue_impact} ({revenue_impact_pct}%). Apply by {deadline}. Reply YES for details.',
+    hi: 'आप {scheme_name} के लिए पात्र हैं। लाभ: ₹{predicted_revenue_impact} ({revenue_impact_pct}%)। {deadline} तक आवेदन करें। विवरण के लिए YES भेजें।',
   },
   do_nothing: {
-    en: 'Your {crop_type} crop is in excellent condition. Continue regular monitoring.',
-    hi: 'आपकी {crop_type} फसल उत्तम स्थिति में है। नियमित निगरानी जारी रखें।',
+    en: 'Your {crop_type} crop is in excellent condition. No action needed. (0% change)',
+    hi: 'आपकी {crop_type} फसल उत्तम स्थिति में है। कोई कार्रवाई जरूरी नहीं। (0% परिवर्तन)',
   },
 };
 
@@ -131,10 +131,11 @@ async function sendWhatsApp({ to, body }) {
  * Handle incoming reply from farmer.
  * Matches reply to most recent pending recommendation for that farmer's crops.
  * Updates status and action_taken.
+ * If reply doesn't match a pending recommendation pattern, routes to AI Advisor.
  * 
  * @param {string} farmerPhone - E.164 format phone number
  * @param {string} replyText - The farmer's reply message
- * @returns {Promise<object>} - Updated recommendation or null
+ * @returns {Promise<object>} - Updated recommendation or AI response
  */
 async function handleReply(farmerPhone, replyText) {
   try {
@@ -155,6 +156,48 @@ async function handleReply(farmerPhone, replyText) {
       status = 'acted';
       actionTaken = 'Farmer confirmed completion';
     } else {
+      // Check if this is a question/query rather than a simple acknowledgment
+      // If so, route to AI Advisor instead of treating as generic acknowledgment
+      const looksLikeQuestion = replyText.includes('?') || 
+                                 replyText.includes('कैसे') || 
+                                 replyText.includes('क्या') || 
+                                 replyText.includes('कब') || 
+                                 replyText.includes('how') || 
+                                 replyText.includes('what') || 
+                                 replyText.includes('when') ||
+                                 replyText.split(' ').length > 5; // Long message likely a question
+      
+      if (looksLikeQuestion) {
+        // Route to AI Advisor
+        try {
+          const aiAdvisorService = require('../services/aiAdvisorService');
+          
+          // Get farmer ID from phone
+          const farmerResult = await db.query(
+            'SELECT id FROM farmers WHERE phone = $1 LIMIT 1',
+            [farmerPhone]
+          );
+          
+          if (farmerResult.rows.length > 0) {
+            const farmerId = farmerResult.rows[0].id;
+            const aiResponse = await aiAdvisorService.handleQuery(farmerId, replyText);
+            
+            // Send AI response back
+            await sendSms({ to: farmerPhone, body: aiResponse });
+            
+            return { 
+              type: 'ai_advisor_response', 
+              farmerId, 
+              query: replyText, 
+              response: aiResponse 
+            };
+          }
+        } catch (err) {
+          console.error('[smsWhatsapp] Error routing to AI Advisor:', err.message);
+          // Fall through to generic acknowledgment
+        }
+      }
+      
       // Generic acknowledgment
       actionTaken = `Farmer replied: ${replyText}`;
     }

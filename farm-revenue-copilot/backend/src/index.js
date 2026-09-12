@@ -13,6 +13,10 @@ const schemesRoutes       = require('./routes/schemes');
 const recommendationRoutes = require('./routes/recommendations');
 const webhookRoutes       = require('./routes/webhooks');
 const cropWrappedRoutes   = require('./routes/cropWrapped');
+const decisionsRoutes     = require('./routes/decisions');
+const diseaseRoutes       = require('./routes/disease');
+const advisorRoutes       = require('./routes/advisor');
+const alertsRoutes        = require('./routes/alerts');
 
 const app  = express();
 const PORT = process.env.PORT || 4000;
@@ -30,6 +34,10 @@ app.use('/api/schemes',         schemesRoutes);
 app.use('/api/recommendations', recommendationRoutes);
 app.use('/api/webhooks',        webhookRoutes);
 app.use('/api/crop-wrapped',    cropWrappedRoutes);
+app.use('/api/decisions',       decisionsRoutes);
+app.use('/api/disease',         diseaseRoutes);
+app.use('/api/advisor',         advisorRoutes);
+app.use('/api/alerts',          alertsRoutes);
 
 // ── Health check ──
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));

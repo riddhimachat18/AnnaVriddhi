@@ -25,28 +25,27 @@ const supabase = createClient(
 );
 
 // ---------------------------------------------------------------------------
-// Path to the Python inference script
+// Path to the Python inference script  (inside backend/grading/scripts/)
 // ---------------------------------------------------------------------------
 const INFER_SCRIPT = path.resolve(
-  __dirname, '..', '..', '..', '..', 'grading', 'scripts', 'infer.py'
+  __dirname, '..', '..', 'grading', 'scripts', 'infer.py'
 );
 
-// Python executable — prefer grading venv, then system python3
+// Python executable — use the system python that has PIL/cv2/numpy
 const PYTHON = (() => {
   const candidates = [
-    path.resolve(__dirname, '..', '..', '..', '..', 'grading', '.venv', 'bin', 'python'),
-    path.resolve(__dirname, '..', '..', '..', '..', 'grading', '.venv', 'bin', 'python3'),
-    path.resolve(__dirname, '..', '..', '..', '..', '.venv', 'bin', 'python'),
-    'python3',
     'python',
+    'python3',
+    path.resolve(__dirname, '..', '..', 'grading', '.venv', 'bin', 'python'),
+    path.resolve(__dirname, '..', '..', 'grading', '.venv', 'bin', 'python3'),
   ];
   for (const c of candidates) {
     try {
-      if (c.startsWith('/') && !fs.existsSync(c)) continue;
+      if ((c.startsWith('/') || c.includes('\\')) && !fs.existsSync(c)) continue;
       return c;
     } catch { /* pass */ }
   }
-  return 'python3';
+  return 'python';
 })();
 
 
